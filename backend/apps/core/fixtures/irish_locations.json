@@ -1,0 +1,550 @@
+[
+  {
+    "model": "core.county",
+    "pk": 1,
+    "fields": {
+      "name": "Dublin",
+      "slug": "dublin"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 2,
+    "fields": {
+      "name": "Cork",
+      "slug": "cork"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 3,
+    "fields": {
+      "name": "Galway",
+      "slug": "galway"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 4,
+    "fields": {
+      "name": "Limerick",
+      "slug": "limerick"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 5,
+    "fields": {
+      "name": "Kerry",
+      "slug": "kerry"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 6,
+    "fields": {
+      "name": "Mayo",
+      "slug": "mayo"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 7,
+    "fields": {
+      "name": "Kildare",
+      "slug": "kildare"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 8,
+    "fields": {
+      "name": "Wicklow",
+      "slug": "wicklow"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 9,
+    "fields": {
+      "name": "Meath",
+      "slug": "meath"
+    }
+  },
+  {
+    "model": "core.county",
+    "pk": 10,
+    "fields": {
+      "name": "Waterford",
+      "slug": "waterford"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 1,
+    "fields": {
+      "name": "Dublin City",
+      "county": 1,
+      "slug": "dublin-city"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 2,
+    "fields": {
+      "name": "Dublin 1",
+      "county": 1,
+      "slug": "dublin-1"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 3,
+    "fields": {
+      "name": "Dublin 2",
+      "county": 1,
+      "slug": "dublin-2"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 4,
+    "fields": {
+      "name": "Dublin 3",
+      "county": 1,
+      "slug": "dublin-3"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 5,
+    "fields": {
+      "name": "Dublin 4",
+      "county": 1,
+      "slug": "dublin-4"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 6,
+    "fields": {
+      "name": "Dublin 6",
+      "county": 1,
+      "slug": "dublin-6"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 7,
+    "fields": {
+      "name": "Dublin 8",
+      "county": 1,
+      "slug": "dublin-8"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 8,
+    "fields": {
+      "name": "Swords",
+      "county": 1,
+      "slug": "swords"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 9,
+    "fields": {
+      "name": "Blanchardstown",
+      "county": 1,
+      "slug": "blanchardstown"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 10,
+    "fields": {
+      "name": "Tallaght",
+      "county": 1,
+      "slug": "tallaght"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 11,
+    "fields": {
+      "name": "Clondalkin",
+      "county": 1,
+      "slug": "clondalkin"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 12,
+    "fields": {
+      "name": "Lucan",
+      "county": 1,
+      "slug": "lucan"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 13,
+    "fields": {
+      "name": "Malahide",
+      "county": 1,
+      "slug": "malahide"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 14,
+    "fields": {
+      "name": "Cork City",
+      "county": 2,
+      "slug": "cork-city"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 15,
+    "fields": {
+      "name": "Ballincollig",
+      "county": 2,
+      "slug": "ballincollig"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 16,
+    "fields": {
+      "name": "Carrigaline",
+      "county": 2,
+      "slug": "carrigaline"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 17,
+    "fields": {
+      "name": "Cobh",
+      "county": 2,
+      "slug": "cobh"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 18,
+    "fields": {
+      "name": "Midleton",
+      "county": 2,
+      "slug": "midleton"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 19,
+    "fields": {
+      "name": "Bandon",
+      "county": 2,
+      "slug": "bandon"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 20,
+    "fields": {
+      "name": "Mallow",
+      "county": 2,
+      "slug": "mallow"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 21,
+    "fields": {
+      "name": "Kinsale",
+      "county": 2,
+      "slug": "kinsale"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 22,
+    "fields": {
+      "name": "Galway City",
+      "county": 3,
+      "slug": "galway-city"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 23,
+    "fields": {
+      "name": "Salthill",
+      "county": 3,
+      "slug": "salthill"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 24,
+    "fields": {
+      "name": "Oranmore",
+      "county": 3,
+      "slug": "oranmore"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 25,
+    "fields": {
+      "name": "Tuam",
+      "county": 3,
+      "slug": "tuam"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 26,
+    "fields": {
+      "name": "Ballinasloe",
+      "county": 3,
+      "slug": "ballinasloe"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 27,
+    "fields": {
+      "name": "Limerick City",
+      "county": 4,
+      "slug": "limerick-city"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 28,
+    "fields": {
+      "name": "Castletroy",
+      "county": 4,
+      "slug": "castletroy"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 29,
+    "fields": {
+      "name": "Newcastle West",
+      "county": 4,
+      "slug": "newcastle-west"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 30,
+    "fields": {
+      "name": "Adare",
+      "county": 4,
+      "slug": "adare"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 31,
+    "fields": {
+      "name": "Tralee",
+      "county": 5,
+      "slug": "tralee"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 32,
+    "fields": {
+      "name": "Killarney",
+      "county": 5,
+      "slug": "killarney"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 33,
+    "fields": {
+      "name": "Dingle",
+      "county": 5,
+      "slug": "dingle"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 34,
+    "fields": {
+      "name": "Kenmare",
+      "county": 5,
+      "slug": "kenmare"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 35,
+    "fields": {
+      "name": "Castlebar",
+      "county": 6,
+      "slug": "castlebar"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 36,
+    "fields": {
+      "name": "Ballina",
+      "county": 6,
+      "slug": "ballina"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 37,
+    "fields": {
+      "name": "Westport",
+      "county": 6,
+      "slug": "westport"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 38,
+    "fields": {
+      "name": "Naas",
+      "county": 7,
+      "slug": "naas"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 39,
+    "fields": {
+      "name": "Newbridge",
+      "county": 7,
+      "slug": "newbridge"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 40,
+    "fields": {
+      "name": "Celbridge",
+      "county": 7,
+      "slug": "celbridge"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 41,
+    "fields": {
+      "name": "Maynooth",
+      "county": 7,
+      "slug": "maynooth"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 42,
+    "fields": {
+      "name": "Leixlip",
+      "county": 7,
+      "slug": "leixlip"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 43,
+    "fields": {
+      "name": "Bray",
+      "county": 8,
+      "slug": "bray"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 44,
+    "fields": {
+      "name": "Wicklow Town",
+      "county": 8,
+      "slug": "wicklow-town"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 45,
+    "fields": {
+      "name": "Greystones",
+      "county": 8,
+      "slug": "greystones"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 46,
+    "fields": {
+      "name": "Arklow",
+      "county": 8,
+      "slug": "arklow"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 47,
+    "fields": {
+      "name": "Navan",
+      "county": 9,
+      "slug": "navan"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 48,
+    "fields": {
+      "name": "Trim",
+      "county": 9,
+      "slug": "trim"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 49,
+    "fields": {
+      "name": "Ashbourne",
+      "county": 9,
+      "slug": "ashbourne"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 50,
+    "fields": {
+      "name": "Waterford City",
+      "county": 10,
+      "slug": "waterford-city"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 51,
+    "fields": {
+      "name": "Tramore",
+      "county": 10,
+      "slug": "tramore"
+    }
+  },
+  {
+    "model": "core.town",
+    "pk": 52,
+    "fields": {
+      "name": "Dungarvan",
+      "county": 10,
+      "slug": "dungarvan"
+    }
+  }
+]
