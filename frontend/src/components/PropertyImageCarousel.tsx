@@ -49,7 +49,7 @@ export default function PropertyImageCarousel({
   };
 
   return (
-    <div className={`relative group ${className}`}>
+    <div className={`relative group isolate ${className}`}>
       {/* Main Image */}
       <div className="relative aspect-[16/10] bg-gray-200 rounded-lg overflow-hidden">
         <Image

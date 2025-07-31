@@ -3,11 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ChevronLeftIcon, ShareIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ShareIcon, HomeIcon } from '@heroicons/react/24/outline';
 import { PropertyDetail } from '@/types/property';
 import PropertyImageCarousel from '@/components/PropertyImageCarousel';
 import PropertyInfoSections from '@/components/PropertyInfoSections';
 import PropertyContactPanel from '@/components/PropertyContactPanel';
+import SimilarProperties from '@/components/SimilarProperties';
 import BERBadge from '@/components/BERBadge';
 
 export default function PropertyDetailPage() {
@@ -144,6 +145,29 @@ export default function PropertyDetailPage() {
     }).format(parseFloat(price));
   };
 
+  const getPropertyTypeDisplay = (type: string, houseType?: string) => {
+    const typeMap: Record<string, string> = {
+      apartment: 'Apartment',
+      house: 'House',
+      shared: 'Shared',
+      studio: 'Studio',
+      townhouse: 'Townhouse'
+    };
+
+    const houseTypeMap: Record<string, string> = {
+      terraced: 'Terraced',
+      semi_detached: 'Semi-Detached',
+      detached: 'Detached',
+      bungalow: 'Bungalow'
+    };
+
+    let display = typeMap[type] || type;
+    if (houseType && houseTypeMap[houseType]) {
+      display = `${houseTypeMap[houseType]} ${display}`;
+    }
+    return display;
+  };
+
   // Prepare images array for carousel
   const images = property.image_urls && property.image_urls.length > 0 
     ? property.image_urls 
@@ -197,7 +221,7 @@ export default function PropertyDetailPage() {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left Column - Property Images and Details */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-6 relative z-10">
             {/* Property Header */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
               <div className="flex items-start justify-between mb-4">
@@ -222,23 +246,61 @@ export default function PropertyDetailPage() {
               </div>
               
               {/* Quick Stats */}
-              <div className="flex items-center gap-6 text-sm text-gray-600">
+              <div className="flex items-center gap-6 text-sm text-gray-600 mb-6">
                 <span>{property.bedrooms} bed{property.bedrooms !== 1 ? 's' : ''}</span>
                 <span>{property.bathrooms} bath{property.bathrooms !== 1 ? 's' : ''}</span>
                 <span className="capitalize">{property.property_type}</span>
                 <span className="capitalize">{property.furnished.replace('_', ' ')}</span>
               </div>
+
+              {/* Property Overview Boxes */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <HomeIcon className="h-5 w-5 text-gray-600" />
+                  <div>
+                    <div className="text-xs text-gray-600">Type</div>
+                    <div className="font-medium text-sm">{getPropertyTypeDisplay(property.property_type, property.house_type)}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-gray-600">🛏️</div>
+                  <div>
+                    <div className="text-xs text-gray-600">Bedrooms</div>
+                    <div className="font-medium text-sm">{property.bedrooms}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-gray-600">🚿</div>
+                  <div>
+                    <div className="text-xs text-gray-600">Bathrooms</div>
+                    <div className="font-medium text-sm">{property.bathrooms}</div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="text-gray-600">€</div>
+                  <div>
+                    <div className="text-xs text-gray-600">Monthly</div>
+                    <div className="font-medium text-sm">{formatPrice(property.rent_monthly)}</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Image Carousel */}
-            <PropertyImageCarousel
-              images={images}
-              propertyTitle={property.title}
-              className="h-96"
-            />
+            <div className="relative z-20">
+              <PropertyImageCarousel
+                images={images}
+                propertyTitle={property.title}
+              />
+            </div>
 
             {/* Property Information Sections */}
-            <PropertyInfoSections property={property} />
+            <div className="relative z-10">
+              <PropertyInfoSections property={property} />
+            </div>
           </div>
 
           {/* Right Column - Contact Panel */}
@@ -250,6 +312,20 @@ export default function PropertyDetailPage() {
               />
             </div>
           </div>
+        </div>
+
+        {/* Similar Properties - Full Width Section */}
+        <div className="mt-12">
+          <SimilarProperties
+            currentProperty={{
+              id: property.id,
+              property_type: property.property_type,
+              bedrooms: property.bedrooms,
+              county: property.county,
+              town: property.town,
+              rent_monthly: property.rent_monthly
+            }}
+          />
         </div>
       </div>
     </div>

@@ -2,7 +2,8 @@
 
 import { PropertyDetail } from '@/types/property';
 import BERBadge from './BERBadge';
-import { CalendarIcon, CurrencyEuroIcon, HomeIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import PropertyLocationMap from './PropertyLocationMap';
+import { CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface PropertyInfoSectionsProps {
   property: PropertyDetail;
@@ -61,46 +62,12 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
 
   return (
     <div className={`space-y-8 ${className}`}>
-      {/* Property Overview */}
+      {/* Property Details */}
       <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Overview</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Property Details</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <HomeIcon className="h-5 w-5 text-gray-600" />
-            <div>
-              <div className="text-sm text-gray-600">Type</div>
-              <div className="font-medium">{getPropertyTypeDisplay(property.property_type, property.house_type)}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <div className="text-gray-600">🛏️</div>
-            <div>
-              <div className="text-sm text-gray-600">Bedrooms</div>
-              <div className="font-medium">{property.bedrooms} bed{property.bedrooms !== 1 ? 's' : ''}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <div className="text-gray-600">🚿</div>
-            <div>
-              <div className="text-sm text-gray-600">Bathrooms</div>
-              <div className="font-medium">{property.bathrooms} bath{property.bathrooms !== 1 ? 's' : ''}</div>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <CurrencyEuroIcon className="h-5 w-5 text-gray-600" />
-            <div>
-              <div className="text-sm text-gray-600">Monthly Rent</div>
-              <div className="font-medium text-lg">{formatPrice(property.rent_monthly)}</div>
-            </div>
-          </div>
-        </div>
-
         {/* Additional details */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="flex justify-between py-2 border-b border-gray-200">
             <span className="text-gray-600">Furnished</span>
             <span className="font-medium">{formatFurnished(property.furnished)}</span>
@@ -195,6 +162,17 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Location Map */}
+      <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Location</h2>
+        <PropertyLocationMap
+          latitude={property.latitude}
+          longitude={property.longitude}
+          address={property.address || property.location_display}
+          title={property.title}
+        />
       </section>
 
       {/* Energy Rating */}
