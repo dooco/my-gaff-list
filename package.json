@@ -1,0 +1,25 @@
+{
+  "name": "my-gaff-list",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:all": "honcho start -f Procfile.dev",
+    "build": "turbo run build",
+    "start": "turbo run start",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "backend:dev": "cd backend && source venv/bin/activate && python manage.py runserver",
+    "frontend:dev": "cd frontend && npm run dev"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  },
+  "packageManager": "npm@10.0.0",
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}
