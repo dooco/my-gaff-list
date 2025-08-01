@@ -162,6 +162,17 @@ class AuthService {
     });
   }
 
+  async getUserProfileDetails(): Promise<any> {
+    return this.makeRequest('/api/users/profile/details/');
+  }
+
+  async updateUserProfileDetails(data: any): Promise<any> {
+    return this.makeRequest('/api/users/profile/details/', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
   async changePassword(data: {
     old_password: string;
     new_password: string;

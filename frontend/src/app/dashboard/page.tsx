@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { NotificationBell } from '@/components/NotificationSystem';
+import { authService } from '@/services/authService';
 import { 
   HeartIcon, 
   DocumentTextIcon, 
@@ -17,120 +18,75 @@ import {
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 
 interface DashboardStats {
-  saved_properties: number;
-  enquiries_sent: number;
-  enquiries_replied: number;
-  profile_views: number;
+  saved_properties_count: number;
+  enquiries_sent_count: number;
+  enquiries_replied_count: number;
+  recent_activities_count: number;
+  profile_completion_percentage: number;
 }
 
 interface SavedProperty {
   id: string;
-  title: string;
-  rent: number;
-  location: string;
-  property_type: string;
-  bedrooms: number;
-  image_url?: string;
+  property: string;
+  property_title: string;
+  property_location: string;
+  property_rent: string;
+  property_bedrooms: number;
+  property_image?: string;
   saved_at: string;
 }
 
 interface Enquiry {
-  id: string;
+  id: number;
+  property: string;
   property_title: string;
-  property_id: string;
+  property_location: string;
+  landlord_name: string;
   message: string;
-  status: 'pending' | 'replied' | 'viewed';
+  status: 'sent' | 'read' | 'replied' | 'closed';
   created_at: string;
-  replied_at?: string;
+  landlord_response?: string;
 }
 
 export default function Dashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState<DashboardStats>({
-    saved_properties: 0,
-    enquiries_sent: 0,
-    enquiries_replied: 0,
-    profile_views: 0
+    saved_properties_count: 0,
+    enquiries_sent_count: 0,
+    enquiries_replied_count: 0,
+    recent_activities_count: 0,
+    profile_completion_percentage: 0
   });
   const [savedProperties, setSavedProperties] = useState<SavedProperty[]>([]);
   const [recentEnquiries, setRecentEnquiries] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Mock data for now - will be replaced with API calls
-    const mockStats: DashboardStats = {
-      saved_properties: 12,
-      enquiries_sent: 8,
-      enquiries_replied: 5,
-      profile_views: 24
+    const fetchDashboardData = async () => {
+      try {
+        // Fetch real dashboard data
+        const [dashboardStats, savedPropertiesData, enquiriesData] = await Promise.all([
+          authService.getDashboardStats(),
+          authService.getSavedProperties(),
+          authService.getUserEnquiries()
+        ]);
+
+        setStats(dashboardStats);
+        setSavedProperties(savedPropertiesData.results || savedPropertiesData);
+        setRecentEnquiries(enquiriesData.results || enquiriesData);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setLoading(false);
+      }
     };
 
-    const mockSavedProperties: SavedProperty[] = [
-      {
-        id: '1',
-        title: 'Modern 2 Bed Apartment in Dublin 2',
-        rent: 2200,
-        location: 'Dublin 2',
-        property_type: 'apartment',
-        bedrooms: 2,
-        saved_at: '2025-01-25T10:30:00Z'
-      },
-      {
-        id: '2',  
-        title: 'Spacious House in Cork City Centre',
-        rent: 1800,
-        location: 'Cork City',
-        property_type: 'house',
-        bedrooms: 3,
-        saved_at: '2025-01-24T15:45:00Z'
-      },
-      {
-        id: '3',
-        title: 'Cozy Studio in Temple Bar',
-        rent: 1500,
-        location: 'Dublin 1',
-        property_type: 'studio',
-        bedrooms: 0,
-        saved_at: '2025-01-23T09:15:00Z'
-      }
-    ];
+    if (user) {
+      fetchDashboardData();
+    }
+  }, [user]);
 
-    const mockEnquiries: Enquiry[] = [
-      {
-        id: '1',
-        property_title: 'Modern 2 Bed Apartment in Dublin 2',
-        property_id: '1',
-        message: 'Hi, I\'m interested in viewing this property. When would be a good time?',
-        status: 'replied',
-        created_at: '2025-01-25T11:00:00Z',
-        replied_at: '2025-01-25T14:20:00Z'
-      },
-      {
-        id: '2',
-        property_title: 'Spacious House in Cork City Centre',
-        property_id: '2',
-        message: 'Is this property still available? I would like to schedule a viewing.',
-        status: 'viewed',
-        created_at: '2025-01-24T16:30:00Z'
-      },
-      {
-        id: '3',
-        property_title: 'Cozy Studio in Temple Bar',
-        property_id: '3',
-        message: 'What\'s included in the rent? Are utilities covered?',
-        status: 'pending',
-        created_at: '2025-01-23T10:45:00Z'
-      }
-    ];
 
-    // Simulate API delay
-    setTimeout(() => {
-      setStats(mockStats);
-      setSavedProperties(mockSavedProperties);
-      setRecentEnquiries(mockEnquiries);
-      setLoading(false);
-    }, 1000);
-  }, []);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-IE', {
@@ -209,7 +165,7 @@ export default function Dashboard() {
                   <HeartIconSolid className="h-8 w-8 text-red-500" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-2xl font-semibold text-gray-900">{stats.saved_properties}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.saved_properties_count}</p>
                   <p className="text-sm text-gray-600">Saved Properties</p>
                 </div>
               </div>
@@ -221,7 +177,7 @@ export default function Dashboard() {
                   <DocumentTextIcon className="h-8 w-8 text-blue-500" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-2xl font-semibold text-gray-900">{stats.enquiries_sent}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.enquiries_sent_count}</p>
                   <p className="text-sm text-gray-600">Enquiries Sent</p>
                 </div>
               </div>
@@ -233,7 +189,7 @@ export default function Dashboard() {
                   <CheckCircleIcon className="h-8 w-8 text-green-500" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-2xl font-semibold text-gray-900">{stats.enquiries_replied}</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.enquiries_replied_count}</p>
                   <p className="text-sm text-gray-600">Enquiries Replied</p>
                 </div>
               </div>
@@ -245,8 +201,8 @@ export default function Dashboard() {
                   <ChartBarIcon className="h-8 w-8 text-purple-500" />
                 </div>
                 <div className="ml-4">
-                  <p className="text-2xl font-semibold text-gray-900">{stats.profile_views}</p>
-                  <p className="text-sm text-gray-600">Profile Views</p>
+                  <p className="text-2xl font-semibold text-gray-900">{stats.profile_completion_percentage}%</p>
+                  <p className="text-sm text-gray-600">Profile Complete</p>
                 </div>
               </div>
             </div>
@@ -281,10 +237,10 @@ export default function Dashboard() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="text-sm font-medium text-gray-900 truncate">
-                            {property.title}
+                            {property.property_title}
                           </h3>
                           <p className="text-sm text-gray-600">
-                            €{property.rent}/month • {property.location}
+                            €{property.property_rent}/month • {property.property_location}
                           </p>
                           <p className="text-xs text-gray-500">
                             Saved {formatDate(property.saved_at)}

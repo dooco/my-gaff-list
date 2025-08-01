@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { authService } from '@/services/authService';
 import { 
   UserIcon,
   EnvelopeIcon,
@@ -82,68 +83,105 @@ export default function Profile() {
   });
 
   useEffect(() => {
-    if (user) {
-      // Mock profile data - will be replaced with API call
-      const mockProfile: UserProfile = {
-        id: user.id,
-        email: user.email,
-        username: user.username,
-        first_name: user.first_name || '',
-        last_name: user.last_name || '',
-        phone: '+353 85 123 4567',
-        date_of_birth: '1990-05-15',
-        user_type: user.user_type,
-        is_email_verified: user.is_email_verified || false,
-        is_phone_verified: true,
-        created_at: '2025-01-15T10:00:00Z',
-        profile: {
-          avatar: user.profile?.avatar,
-          bio: 'Looking for a comfortable place to call home in Dublin. Professional with excellent references.',
-          occupation: 'Software Engineer',
-          company: 'Tech Solutions Ltd',
-          website: 'https://johndoe.dev',
-          location: 'Dublin, Ireland',
-          preferred_contact_method: 'email',
-          receive_email_notifications: true,
-          receive_sms_notifications: false,
-          profile_visibility: 'contacts_only'
-        }
-      };
+    const fetchUserProfile = async () => {
+      if (user) {
+        try {
+          // Fetch real user profile data
+          const [userProfile, profileDetails] = await Promise.all([
+            authService.getCurrentUser(),
+            authService.getUserProfileDetails()
+          ]);
 
-      setProfile(mockProfile);
-      setProfileForm({
-        first_name: mockProfile.first_name,
-        last_name: mockProfile.last_name,
-        phone: mockProfile.phone || '',
-        bio: mockProfile.profile.bio || '',
-        occupation: mockProfile.profile.occupation || '',
-        company: mockProfile.profile.company || '',
-        website: mockProfile.profile.website || '',
-        location: mockProfile.profile.location || ''
-      });
-      setLoading(false);
-    }
+          const combinedProfile: UserProfile = {
+            id: userProfile.id,
+            email: userProfile.email,
+            username: userProfile.username,
+            first_name: userProfile.first_name || '',
+            last_name: userProfile.last_name || '',
+            phone: userProfile.phone_number || '',
+            date_of_birth: profileDetails.date_of_birth,
+            user_type: userProfile.user_type,
+            is_email_verified: userProfile.is_email_verified || false,
+            is_phone_verified: userProfile.is_phone_verified || false,
+            created_at: userProfile.created_at,
+            profile: {
+              avatar: profileDetails.avatar || '',
+              bio: profileDetails.bio || '',
+              occupation: '', // Not in current backend model
+              company: '', // Not in current backend model
+              website: '', // Not in current backend model
+              location: '', // Not in current backend model
+              preferred_contact_method: 'email',
+              receive_email_notifications: profileDetails.email_notifications,
+              receive_sms_notifications: profileDetails.sms_notifications,
+              profile_visibility: profileDetails.profile_visibility
+            }
+          };
+
+          setProfile(combinedProfile);
+          setProfileForm({
+            first_name: combinedProfile.first_name,
+            last_name: combinedProfile.last_name,
+            phone: combinedProfile.phone || '',
+            bio: combinedProfile.profile.bio || '',
+            occupation: '', // Not in backend model yet
+            company: '', // Not in backend model yet
+            website: '', // Not in backend model yet
+            location: '' // Not in backend model yet
+          });
+
+          // Set notification settings from profile details
+          setNotificationSettings({
+            new_properties: profileDetails.new_property_alerts,
+            price_drops: profileDetails.price_drop_alerts,
+            enquiry_responses: true, // Default
+            property_updates: false, // Default
+            marketing_emails: false // Default
+          });
+
+          setLoading(false);
+        } catch (error) {
+          console.error('Error fetching profile:', error);
+          setMessage({ type: 'error', text: 'Failed to load profile data' });
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchUserProfile();
   }, [user]);
 
   const handleSaveProfile = async () => {
     setSaveLoading(true);
     try {
-      // Mock API call - will be replaced with actual API
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      // Update user basic info
+      const userUpdateData = {
+        first_name: profileForm.first_name,
+        last_name: profileForm.last_name,
+        phone_number: profileForm.phone,
+      };
+
+      // Update profile details
+      const profileUpdateData = {
+        bio: profileForm.bio,
+      };
+
+      // Make API calls
+      const [updatedUser, updatedProfileDetails] = await Promise.all([
+        authService.updateProfile(userUpdateData),
+        authService.updateUserProfileDetails(profileUpdateData)
+      ]);
+
+      // Update local profile state
       if (profile) {
         const updatedProfile = {
           ...profile,
-          first_name: profileForm.first_name,
-          last_name: profileForm.last_name,
-          phone: profileForm.phone,
+          first_name: updatedUser.first_name,
+          last_name: updatedUser.last_name,
+          phone: updatedUser.phone_number,
           profile: {
             ...profile.profile,
-            bio: profileForm.bio,
-            occupation: profileForm.occupation,
-            company: profileForm.company,
-            website: profileForm.website,
-            location: profileForm.location
+            bio: updatedProfileDetails.bio
           }
         };
         setProfile(updatedProfile);
@@ -152,6 +190,7 @@ export default function Profile() {
       setMessage({ type: 'success', text: 'Profile updated successfully!' });
       setIsEditing(false);
     } catch (error) {
+      console.error('Error updating profile:', error);
       setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
     } finally {
       setSaveLoading(false);
@@ -161,10 +200,18 @@ export default function Profile() {
   const handleSaveNotifications = async () => {
     setSaveLoading(true);
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Update notification preferences
+      const notificationData = {
+        email_notifications: true, // General email notifications
+        sms_notifications: false, // General SMS notifications
+        new_property_alerts: notificationSettings.new_properties,
+        price_drop_alerts: notificationSettings.price_drops,
+      };
+
+      await authService.updateUserProfileDetails(notificationData);
       setMessage({ type: 'success', text: 'Notification settings updated!' });
     } catch (error) {
+      console.error('Error updating notifications:', error);
       setMessage({ type: 'error', text: 'Failed to update settings. Please try again.' });
     } finally {
       setSaveLoading(false);
