@@ -1,6 +1,10 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth import get_user_model
 import uuid
+import os
+
+User = get_user_model()
 
 
 class County(models.Model):
@@ -82,6 +86,36 @@ class Landlord(models.Model):
         return self.name
 
 
+def property_image_upload_path(instance, filename):
+    """Generate upload path for property images"""
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4().hex}.{ext}"
+    return f"properties/{instance.property.id}/{filename}"
+
+
+class PropertyImage(models.Model):
+    """Property Image model for handling multiple images per property"""
+    property = models.ForeignKey('Property', on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to=property_image_upload_path)
+    caption = models.CharField(max_length=200, blank=True)
+    is_main = models.BooleanField(default=False)
+    order = models.PositiveIntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+    
+    def __str__(self):
+        return f"Image for {self.property.title} ({'Main' if self.is_main else 'Additional'})"
+    
+    def save(self, *args, **kwargs):
+        # Ensure only one main image per property
+        if self.is_main:
+            PropertyImage.objects.filter(property=self.property, is_main=True).update(is_main=False)
+        super().save(*args, **kwargs)
+
+
 class Property(models.Model):
     """Irish Property Rental Listing model"""
     
@@ -90,14 +124,18 @@ class Property(models.Model):
         ('house', 'House'),
         ('shared', 'Shared Accommodation'),
         ('studio', 'Studio'),
-        ('townhouse', 'Townhouse'),
+        ('room', 'Room'),
     ]
     
     HOUSE_TYPES = [
-        ('terraced', 'Terraced'),
-        ('semi_detached', 'Semi-Detached'),
-        ('detached', 'Detached'),
+        ('detached', 'Detached House'),
+        ('semi_detached', 'Semi-Detached House'),
+        ('terraced', 'Terraced House'),
+        ('end_terrace', 'End of Terrace House'),
+        ('cottage', 'Cottage'),
         ('bungalow', 'Bungalow'),
+        ('townhouse', 'Townhouse'),
+        ('duplex', 'Duplex'),
     ]
     
     BER_RATINGS = [
@@ -116,6 +154,11 @@ class Property(models.Model):
         ('part_furnished', 'Part Furnished'),
     ]
     
+    CONTACT_METHODS = [
+        ('direct', 'Direct Contact'),
+        ('message_only', 'Message Only'),
+    ]
+    
     # Basic Info
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
@@ -124,7 +167,7 @@ class Property(models.Model):
     # Location
     county = models.ForeignKey(County, on_delete=models.CASCADE)
     town = models.ForeignKey(Town, on_delete=models.CASCADE)
-    address = models.CharField(max_length=300, blank=True)
+    address = models.CharField(max_length=300)
     
     # Property Details
     property_type = models.CharField(max_length=20, choices=PROPERTY_TYPES)
@@ -137,6 +180,7 @@ class Property(models.Model):
     rent_monthly = models.DecimalField(max_digits=6, decimal_places=2, validators=[MinValueValidator(0)])
     deposit = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     furnished = models.CharField(max_length=20, choices=FURNISHED_CHOICES)
+    lease_duration = models.CharField(max_length=50, blank=True, help_text="e.g., '12', '18', 'flexible'")
     
     # Energy Rating
     ber_rating = models.CharField(max_length=10, choices=BER_RATINGS, blank=True)
@@ -145,21 +189,29 @@ class Property(models.Model):
     # Features
     features = models.JSONField(default=list, blank=True, help_text="List of property features")
     
-    # Images
+    # Legacy image support (for backward compatibility)
     main_image = models.URLField(blank=True)
     image_urls = models.JSONField(default=list, blank=True, help_text="List of image URLs")
     
     # Availability
     available_from = models.DateField()
-    lease_length = models.CharField(max_length=50, blank=True, help_text="e.g., '12 months', 'Long term'")
     
-    # Contact - Landlord/Agent relationship
+    # Contact Method
+    contact_method = models.CharField(max_length=20, choices=CONTACT_METHODS, default='direct')
+    
+    # Landlord/Agent relationship
     landlord = models.ForeignKey(Landlord, on_delete=models.CASCADE, related_name='properties', null=True, blank=True)
+    # Link to actual user who created the listing
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='owned_properties', null=True, blank=True)
     
     # Meta
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    
+    # Stats
+    view_count = models.PositiveIntegerField(default=0)
+    enquiry_count = models.PositiveIntegerField(default=0)
     
     class Meta:
         ordering = ['-created_at']
@@ -190,3 +242,27 @@ class Property(models.Model):
         elif self.ber_rating == 'G':
             return 'ber-g'  # Maroon
         return 'ber-exempt'  # Grey for exempt
+    
+    @property
+    def main_image_url(self):
+        """Get the main image URL, prioritizing uploaded images over legacy URLs"""
+        main_image = self.images.filter(is_main=True).first()
+        if main_image:
+            return main_image.image.url
+        elif self.images.exists():
+            return self.images.first().image.url
+        elif self.main_image:
+            return self.main_image
+        return None
+    
+    def increment_view_count(self):
+        """Increment view count"""
+        self.view_count += 1
+        self.save(update_fields=['view_count'])
+    
+    def increment_enquiry_count(self):
+        """Increment enquiry count"""
+        self.enquiry_count += 1
+        self.save(update_fields=['enquiry_count'])
+
+

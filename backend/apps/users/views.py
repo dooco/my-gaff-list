@@ -215,6 +215,79 @@ class UserEnquiriesViewSet(viewsets.ReadOnlyModelViewSet):
         ).select_related('property__county', 'property__town', 'property__landlord')
 
 
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_property_enquiry(request):
+    """Create a new property enquiry"""
+    user = request.user
+    property_id = request.data.get('property_id')
+    message = request.data.get('message', '').strip()
+    phone = request.data.get('phone', '').strip()
+    preferred_contact_method = request.data.get('preferred_contact_method', 'email')
+    viewing_preference = request.data.get('viewing_preference', 'flexible')
+    
+    # Validation
+    if not property_id:
+        return Response({'error': 'Property ID is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    if not message:
+        return Response({'error': 'Message is required.'}, status=status.HTTP_400_BAD_REQUEST)
+    
+    try:
+        property_obj = Property.objects.get(id=property_id, is_active=True)
+    except Property.DoesNotExist:
+        return Response({'error': 'Property not found.'}, status=status.HTTP_404_NOT_FOUND)
+    
+    # Check if user already sent an enquiry for this property recently (within 24 hours)
+    recent_enquiry = PropertyEnquiry.objects.filter(
+        user=user,
+        property=property_obj,
+        created_at__gte=timezone.now() - timezone.timedelta(hours=24)
+    ).first()
+    
+    if recent_enquiry:
+        return Response({
+            'error': 'You have already sent an enquiry for this property recently. Please wait before sending another.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    # Create the enquiry
+    enquiry = PropertyEnquiry.objects.create(
+        user=user,
+        property=property_obj,
+        name=user.full_name,
+        email=user.email,
+        phone=phone,
+        message=message,
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
+    
+    # Increment property enquiry count
+    property_obj.increment_enquiry_count()
+    
+    # Log activity
+    UserActivity.objects.create(
+        user=user,
+        activity_type='enquiry_sent',
+        description=f'Sent enquiry for property: {property_obj.title}',
+        metadata={
+            'property_id': str(property_id),
+            'preferred_contact_method': preferred_contact_method,
+            'viewing_preference': viewing_preference
+        },
+        ip_address=request.META.get('REMOTE_ADDR'),
+        user_agent=request.META.get('HTTP_USER_AGENT', '')
+    )
+    
+    # Return success response
+    serializer = PropertyEnquirySerializer(enquiry)
+    return Response({
+        'success': True,
+        'message': 'Enquiry sent successfully! You should receive a response within 24-48 hours.',
+        'enquiry': serializer.data
+    }, status=status.HTTP_201_CREATED)
+
+
 class UserActivityViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for user activity tracking"""
     serializer_class = UserActivitySerializer

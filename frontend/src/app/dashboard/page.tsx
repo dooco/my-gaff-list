@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { NotificationBell } from '@/components/NotificationSystem';
 import { 
   HeartIcon, 
   DocumentTextIcon, 
@@ -189,8 +190,11 @@ export default function Dashboard() {
                   Here's what's happening with your property search
                 </p>
               </div>
-              <div className="text-sm text-gray-500">
-                Last updated: {new Date().toLocaleDateString('en-IE')}
+              <div className="flex items-center gap-4">
+                <NotificationBell />
+                <div className="text-sm text-gray-500">
+                  Last updated: {new Date().toLocaleDateString('en-IE')}
+                </div>
               </div>
             </div>
           </div>

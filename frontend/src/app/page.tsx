@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import SearchBar from '@/components/SearchBar';
 import PropertyGrid from '@/components/PropertyGrid';
 import UserMenu from '@/components/layout/UserMenu';
+import { NotificationBell } from '@/components/NotificationSystem';
 import { useProperties } from '@/hooks/useProperties';
 import { Property, PropertyFilters } from '@/types/property';
 
@@ -39,6 +40,7 @@ export default function Home() {
               <div className="text-sm text-gray-500">
                 {totalCount > 0 && `${totalCount} properties available`}
               </div>
+              <NotificationBell />
               <UserMenu />
             </div>
           </div>

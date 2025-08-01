@@ -9,7 +9,7 @@ import {
 } from '@/types/auth';
 import { tokenStorage } from '@/utils/tokenStorage';
 
-const BASE_URL = 'http://localhost:8000/api';
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 class AuthService {
   private baseUrl: string;
@@ -79,7 +79,7 @@ class AuthService {
 
   // Authentication methods
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    const response = await this.makeRequest<LoginResponse>('/users/auth/login/', {
+    const response = await this.makeRequest<LoginResponse>('/api/users/auth/login/', {
       method: 'POST',
       body: JSON.stringify(credentials),
     });
@@ -95,7 +95,7 @@ class AuthService {
   }
 
   async register(data: RegisterData): Promise<RegisterResponse> {
-    const response = await this.makeRequest<RegisterResponse>('/users/auth/register/', {
+    const response = await this.makeRequest<RegisterResponse>('/api/users/auth/register/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
@@ -116,7 +116,7 @@ class AuthService {
       throw new Error('No refresh token available');
     }
 
-    const response = await fetch(`${this.baseUrl}/users/auth/login/refresh/`, {
+    const response = await fetch(`${this.baseUrl}/api/users/auth/login/refresh/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -135,7 +135,7 @@ class AuthService {
     // Update stored tokens
     const newTokens = {
       access: data.access,
-      refresh: refreshToken, // Keep the same refresh token
+      refresh: data.refresh || refreshToken, // Use new refresh token if provided
     };
     
     tokenStorage.setTokens(newTokens);
@@ -152,11 +152,11 @@ class AuthService {
 
   // User profile methods
   async getCurrentUser(): Promise<User> {
-    return this.makeRequest<User>('/users/profile/');
+    return this.makeRequest<User>('/api/users/profile/');
   }
 
   async updateProfile(data: Partial<User>): Promise<User> {
-    return this.makeRequest<User>('/users/profile/', {
+    return this.makeRequest<User>('/api/users/profile/', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
@@ -167,15 +167,15 @@ class AuthService {
     new_password: string;
     new_password_confirm: string;
   }): Promise<{ detail: string }> {
-    return this.makeRequest('/users/profile/change-password/', {
-      method: 'PUT',
+    return this.makeRequest('/api/users/profile/change-password/', {
+      method: 'POST',
       body: JSON.stringify(data),
     });
   }
 
   // Dashboard and stats
   async getDashboardStats(): Promise<DashboardStats> {
-    return this.makeRequest<DashboardStats>('/users/dashboard/stats/');
+    return this.makeRequest<DashboardStats>('/api/users/dashboard/stats/');
   }
 
   // Property interactions
@@ -183,22 +183,21 @@ class AuthService {
     saved: boolean;
     message: string;
   }> {
-    return this.makeRequest('/users/saved-properties/toggle_save/', {
+    return this.makeRequest(`/api/users/saved-properties/${propertyId}/toggle/`, {
       method: 'POST',
-      body: JSON.stringify({ property_id: propertyId }),
     });
   }
 
   async checkPropertySaved(propertyId: string): Promise<{ is_saved: boolean }> {
-    return this.makeRequest(`/users/properties/${propertyId}/saved/`);
+    return this.makeRequest(`/api/users/properties/${propertyId}/saved/`);
   }
 
   async getSavedProperties(): Promise<any[]> {
-    return this.makeRequest('/users/saved-properties/');
+    return this.makeRequest('/api/users/saved-properties/');
   }
 
   async getUserEnquiries(): Promise<any[]> {
-    return this.makeRequest('/users/enquiries/');
+    return this.makeRequest('/api/users/enquiries/');
   }
 
   // Activity tracking
@@ -207,7 +206,7 @@ class AuthService {
     description?: string;
     metadata?: Record<string, any>;
   }): Promise<{ success: boolean; activity_id: number }> {
-    return this.makeRequest('/users/track-activity/', {
+    return this.makeRequest('/api/users/track-activity/', {
       method: 'POST',
       body: JSON.stringify(data),
     });

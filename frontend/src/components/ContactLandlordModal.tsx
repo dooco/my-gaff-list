@@ -10,6 +10,8 @@ import {
   PhoneIcon
 } from '@heroicons/react/24/outline';
 
+const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
 interface ContactLandlordModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -40,7 +42,7 @@ export default function ContactLandlordModal({
   property, 
   onSuccess 
 }: ContactLandlordModalProps) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, tokens } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -71,18 +73,37 @@ ${user?.first_name || 'Name'}`,
     setError(null);
 
     try {
-      // Mock API call - will be replaced with actual API
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Call the real API endpoint
+      const response = await fetch(`${BASE_URL}/api/users/properties/enquiry/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens?.access}`,
+        },
+        body: JSON.stringify({
+          property_id: property.id,
+          message: form.message,
+          phone: form.phone,
+          preferred_contact_method: form.preferred_contact_method,
+          viewing_preference: form.viewing_preference,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send enquiry');
+      }
+
+      const data = await response.json();
       
-      // Simulate random success/failure for demo
-      if (Math.random() > 0.2) {
+      if (data.success) {
         setSuccess(true);
         setTimeout(() => {
           onSuccess?.();
           onClose();
         }, 2000);
       } else {
-        throw new Error('Failed to send enquiry. Please try again.');
+        throw new Error(data.message || 'Failed to send enquiry');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send enquiry');

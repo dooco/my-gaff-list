@@ -5,7 +5,7 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     CustomTokenObtainPairView, RegisterView, UserProfileView, UserProfileDetailView,
     ChangePasswordView, SavedPropertiesViewSet, UserEnquiriesViewSet, UserActivityViewSet,
-    dashboard_stats, track_activity, check_property_saved
+    dashboard_stats, track_activity, check_property_saved, create_property_enquiry
 )
 
 # Create router for viewsets
@@ -37,6 +37,7 @@ urlpatterns = [
     
     # Property interactions
     path('properties/<uuid:property_id>/saved/', check_property_saved, name='check-property-saved'),
+    path('properties/enquiry/', create_property_enquiry, name='create-property-enquiry'),
     
     # Include router URLs
     path('', include(router.urls)),

@@ -6,10 +6,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q
 import django_filters
 
-from .models import County, Town, Property, Landlord
+from .models import County, Town, Property, Landlord, PropertyImage
 from .serializers import (
     CountySerializer, TownSerializer, PropertyListSerializer,
-    PropertyDetailSerializer, PropertyCreateSerializer, PropertyEnquirySerializer
+    PropertyDetailSerializer, PropertyCreateSerializer, PropertyEnquirySerializer,
+    PropertyImageSerializer
 )
 
 
@@ -143,28 +144,42 @@ class PropertyViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def enquiry(self, request, pk=None):
         """Submit an enquiry for a property"""
-        property = self.get_object()
+        property_instance = self.get_object()
         
-        # Add property_id to the request data
+        # Add property to the request data
         data = request.data.copy()
-        data['property_id'] = str(property.id)
+        data['property_id'] = str(property_instance.id)
         
-        serializer = PropertyEnquirySerializer(data=data)
+        serializer = PropertyEnquirySerializer(data=data, context={'request': request})
         if serializer.is_valid():
-            # Here you would typically send an email to the landlord
-            # For now, we'll just return a success response
-            validated_data = serializer.validated_data
+            # Save the enquiry to database
+            enquiry = serializer.save()
             
-            # Log the enquiry (in a real app, you'd save it to database or send email)
-            print(f"Enquiry received for property {property.title}:")
-            print(f"From: {validated_data['name']} ({validated_data['email']})")
-            print(f"Message: {validated_data['message']}")
+            # Increment view count for property
+            property_instance.increment_view_count()
+            
+            # Log the enquiry for debugging
+            print(f"Enquiry received for property {property_instance.title}:")
+            print(f"From: {enquiry.name} ({enquiry.email})")
+            print(f"Message: {enquiry.message}")
             
             return Response({
                 'success': True,
                 'message': 'Your enquiry has been sent successfully. The landlord will contact you soon.',
-                'property_title': property.title,
-                'landlord_response_time': f"{property.landlord.response_time_hours} hours" if property.landlord else "24 hours"
-            }, status=status.HTTP_200_OK)
+                'property_title': property_instance.title,
+                'landlord_response_time': f"{property_instance.landlord.response_time_hours} hours" if property_instance.landlord else "24 hours",
+                'enquiry_id': enquiry.id
+            }, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'])
+    def view(self, request, pk=None):
+        """Track property view"""
+        property_instance = self.get_object()
+        property_instance.increment_view_count()
+        
+        return Response({
+            'success': True,
+            'view_count': property_instance.view_count
+        }, status=status.HTTP_200_OK)
