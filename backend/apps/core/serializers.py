@@ -78,7 +78,7 @@ class PropertyListSerializer(serializers.ModelSerializer):
     location_display = serializers.ReadOnlyField()
     ber_color_class = serializers.ReadOnlyField()
     landlord = LandlordSerializer(read_only=True)
-    main_image_url = serializers.ReadOnlyField()
+    main_image_url = serializers.SerializerMethodField()
     
     class Meta:
         model = Property
@@ -88,6 +88,15 @@ class PropertyListSerializer(serializers.ModelSerializer):
             'main_image_url', 'location_display', 'county_name', 'town_name',
             'available_from', 'created_at', 'features', 'landlord'
         ]
+    
+    def get_main_image_url(self, obj):
+        """Return main image URL as string"""
+        if obj.main_image_url:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.main_image_url)
+            return obj.main_image_url
+        return None
 
 
 class PropertyDetailSerializer(serializers.ModelSerializer):
@@ -97,7 +106,7 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
     location_display = serializers.ReadOnlyField()
     ber_color_class = serializers.ReadOnlyField()
     landlord = LandlordSerializer(read_only=True)
-    images = PropertyImageSerializer(many=True, read_only=True)
+    images = serializers.SerializerMethodField()
     main_image_url = serializers.ReadOnlyField()
     
     class Meta:
@@ -110,6 +119,21 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
             'county_name', 'town_name', 'location_display', 'address',
             'created_at', 'updated_at', 'view_count', 'enquiry_count', 'landlord'
         ]
+    
+    def get_images(self, obj):
+        """Return images as an array of URL strings"""
+        request = self.context.get('request')
+        images = obj.images.all().order_by('order', 'created_at')
+        
+        image_urls = []
+        for image in images:
+            if image.image:
+                if request:
+                    image_urls.append(request.build_absolute_uri(image.image.url))
+                else:
+                    image_urls.append(image.image.url)
+        
+        return image_urls
 
 
 class PropertyCreateSerializer(serializers.ModelSerializer):

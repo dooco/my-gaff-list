@@ -169,10 +169,10 @@ export default function PropertyDetailPage() {
   };
 
   // Prepare images array for carousel
-  const images = property.image_urls && property.image_urls.length > 0 
-    ? property.image_urls 
-    : property.main_image 
-    ? [property.main_image] 
+  const images = property.images && property.images.length > 0 
+    ? property.images 
+    : property.main_image_url 
+    ? [property.main_image_url] 
     : [];
 
   return (
@@ -185,12 +185,12 @@ export default function PropertyDetailPage() {
               Home
             </Link>
             <span className="text-gray-400">/</span>
-            <Link href={`/?county=${property.county.slug}`} className="text-blue-600 hover:text-blue-800">
-              {property.county.name}
+            <Link href={`/?county=${property.county_name.toLowerCase()}`} className="text-blue-600 hover:text-blue-800">
+              {property.county_name}
             </Link>
             <span className="text-gray-400">/</span>
-            <Link href={`/?county=${property.county.slug}&town=${property.town.slug}`} className="text-blue-600 hover:text-blue-800">
-              {property.town.name}
+            <Link href={`/?county=${property.county_name.toLowerCase()}&town=${property.town_name.toLowerCase()}`} className="text-blue-600 hover:text-blue-800">
+              {property.town_name}
             </Link>
             <span className="text-gray-400">/</span>
             <span className="text-gray-600 truncate">{property.title}</span>
@@ -321,8 +321,8 @@ export default function PropertyDetailPage() {
               id: property.id,
               property_type: property.property_type,
               bedrooms: property.bedrooms,
-              county: property.county,
-              town: property.town,
+              county_name: property.county_name,
+              town_name: property.town_name,
               rent_monthly: property.rent_monthly
             }}
           />

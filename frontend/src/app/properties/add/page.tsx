@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, MapPin, Home, DollarSign, Calendar, ImageIcon, Plus, X } from 'lucide-react'
-import LandlordOrAgentRoute from '@/components/auth/LandlordOrAgentRoute'
+import { LandlordOrAgentRoute } from '@/components/auth/ProtectedRoute'
 import api from '@/lib/api'
 
 interface PropertyForm {
@@ -138,7 +138,7 @@ export default function AddPropertyPage() {
   const [customFeature, setCustomFeature] = useState('')
 
   // Load counties on component mount
-  useState(() => {
+  useEffect(() => {
     const fetchCounties = async () => {
       try {
         const response = await api.get('/counties/')
@@ -148,14 +148,14 @@ export default function AddPropertyPage() {
       }
     }
     fetchCounties()
-  })
+  }, [])
 
   // Load towns when county changes
-  useState(() => {
+  useEffect(() => {
     if (formData.county) {
       const fetchTowns = async () => {
         try {
-          const response = await api.get(`/towns/?county__slug=${formData.county}`)
+          const response = await api.get(`/counties/${formData.county}/towns/`)
           setTowns(response.data.results || response.data)
         } catch (error) {
           console.error('Failed to fetch towns:', error)
@@ -165,7 +165,7 @@ export default function AddPropertyPage() {
     } else {
       setTowns([])
     }
-  })
+  }, [formData.county])
 
   const handleInputChange = (field: keyof PropertyForm, value: any) => {
     setFormData(prev => ({
@@ -264,12 +264,24 @@ export default function AddPropertyPage() {
           value.forEach((file: File) => {
             submitData.append('images', file)
           })
+        } else if (key === 'county') {
+          // Convert county slug to ID
+          const county = counties.find(c => c.slug === value)
+          if (county) {
+            submitData.append('county_id', county.id)
+          }
+        } else if (key === 'town') {
+          // Convert town slug to ID
+          const town = towns.find(t => t.slug === value)
+          if (town) {
+            submitData.append('town_id', town.id)
+          }
         } else {
           submitData.append(key, String(value))
         }
       })
 
-      const response = await api.post('/properties/', submitData, {
+      const response = await api.post('/landlords/properties/', submitData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }
@@ -309,7 +321,7 @@ export default function AddPropertyPage() {
               Back to Property Management
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">Add New Property</h1>
-            <p className="text-gray-600 mt-2">List your property for rent on My Gaff List</p>
+            <p className="text-gray-600 mt-2">List your property for rent on Rentified</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">

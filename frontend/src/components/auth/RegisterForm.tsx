@@ -197,7 +197,7 @@ export default function RegisterForm({
       {/* Header */}
       <div className="text-center mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Create Account</h2>
-        <p className="text-gray-600 mt-2">Join the My Gaff List community</p>
+        <p className="text-gray-600 mt-2">Join the Rentified community</p>
       </div>
 
       {/* Progress Indicator */}

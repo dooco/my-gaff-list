@@ -53,6 +53,8 @@ INSTALLED_APPS = [
     'apps.core',
     'apps.users',
     'apps.api',
+    'apps.landlords',
+    'apps.messaging',
 ]
 
 MIDDLEWARE = [

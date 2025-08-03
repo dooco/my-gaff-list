@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, MapPin, Home, DollarSign, ImageIcon, Plus, X, Loader } from 'lucide-react'
-import LandlordOrAgentRoute from '@/components/auth/LandlordOrAgentRoute'
+import { LandlordOrAgentRoute } from '@/components/auth/ProtectedRoute'
 import api from '@/lib/api'
 
 interface PropertyForm {
@@ -155,7 +155,7 @@ export default function EditPropertyPage() {
         setCounties(countiesResponse.data.results || countiesResponse.data)
 
         // Fetch property data
-        const propertyResponse = await api.get(`/properties/${propertyId}/`)
+        const propertyResponse = await api.get(`/landlords/properties/${propertyId}/`)
         const property = propertyResponse.data
 
         // Format date for input
@@ -186,7 +186,7 @@ export default function EditPropertyPage() {
 
         // Fetch towns for the selected county
         if (property.county?.slug) {
-          const townsResponse = await api.get(`/towns/?county__slug=${property.county.slug}`)
+          const townsResponse = await api.get(`/counties/${property.county.slug}/towns/`)
           setTowns(townsResponse.data.results || townsResponse.data)
         }
 
@@ -208,7 +208,7 @@ export default function EditPropertyPage() {
     if (formData.county && formData.county !== counties.find(c => c.slug === formData.county)?.slug) {
       const fetchTowns = async () => {
         try {
-          const response = await api.get(`/towns/?county__slug=${formData.county}`)
+          const response = await api.get(`/counties/${formData.county}/towns/`)
           setTowns(response.data.results || response.data)
         } catch (error) {
           console.error('Failed to fetch towns:', error)
@@ -334,6 +334,18 @@ export default function EditPropertyPage() {
           })
         } else if (key === 'existing_images') {
           // Skip existing images - they're handled separately
+        } else if (key === 'county') {
+          // Convert county slug to ID
+          const county = counties.find(c => c.slug === value)
+          if (county) {
+            submitData.append('county_id', county.id)
+          }
+        } else if (key === 'town') {
+          // Convert town slug to ID
+          const town = towns.find(t => t.slug === value)
+          if (town) {
+            submitData.append('town_id', town.id)
+          }
         } else {
           submitData.append(key, String(value))
         }
@@ -344,7 +356,7 @@ export default function EditPropertyPage() {
         submitData.append('deleted_image_ids', JSON.stringify(deletedImageIds))
       }
 
-      await api.patch(`/properties/${propertyId}/`, submitData, {
+      await api.patch(`/landlords/properties/${propertyId}/`, submitData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

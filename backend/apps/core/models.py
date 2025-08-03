@@ -208,6 +208,7 @@ class Property(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_active = models.BooleanField(default=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     
     # Stats
     view_count = models.PositiveIntegerField(default=0)
@@ -242,6 +243,24 @@ class Property(models.Model):
         elif self.ber_rating == 'G':
             return 'ber-g'  # Maroon
         return 'ber-exempt'  # Grey for exempt
+    
+    def soft_delete(self):
+        """Soft delete the property by setting deleted_at timestamp"""
+        from django.utils import timezone
+        self.deleted_at = timezone.now()
+        self.is_active = False
+        self.save()
+    
+    def restore(self):
+        """Restore a soft deleted property"""
+        self.deleted_at = None
+        self.is_active = True
+        self.save()
+    
+    @property
+    def is_deleted(self):
+        """Check if property is soft deleted"""
+        return self.deleted_at is not None
     
     @property
     def main_image_url(self):

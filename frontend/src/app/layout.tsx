@@ -3,6 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider, ToastContainer } from "@/components/NotificationSystem";
+import Header from "@/components/layout/Header";
+import Footer from "@/components/layout/Footer";
+import DebugAuth from "@/components/DebugAuth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -15,7 +18,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "My Gaff List - Find Your Perfect Rental in Ireland",
+  title: "Rentified - Find Your Perfect Rental in Ireland",
   description: "Discover your ideal rental property in Ireland. Browse apartments, houses, and shared accommodations with verified landlords and comprehensive BER ratings.",
 };
 
@@ -27,12 +30,17 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <AuthProvider>
           <NotificationProvider>
-            {children}
+            <Header />
+            <main id="main-content" className="flex-grow">
+              {children}
+            </main>
+            <Footer />
             <ToastContainer />
+            <DebugAuth />
           </NotificationProvider>
         </AuthProvider>
       </body>

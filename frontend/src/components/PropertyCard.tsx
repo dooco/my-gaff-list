@@ -39,7 +39,16 @@ const formatPropertyType = (type: string): string => {
   }
 };
 
-const formatFurnished = (furnished: string): string => {
+const formatFurnished = (furnished: string | boolean): string => {
+  // Handle boolean values or string representations of booleans
+  if (furnished === false || furnished === 'False' || furnished === 'false') {
+    return 'Unfurnished';
+  }
+  if (furnished === true || furnished === 'True' || furnished === 'true') {
+    return 'Furnished';
+  }
+  
+  // Handle proper string values
   switch (furnished) {
     case 'furnished':
       return 'Furnished';
@@ -48,7 +57,8 @@ const formatFurnished = (furnished: string): string => {
     case 'part_furnished':
       return 'Part Furnished';
     default:
-      return furnished;
+      // If it's an unexpected value, don't display it
+      return '';
   }
 };
 
@@ -92,9 +102,9 @@ export default function PropertyCard({ property, onSelect, className = '' }: Pro
     >
       {/* Image */}
       <div className="relative aspect-[4/3] bg-gray-200">
-        {property.main_image ? (
+        {property.main_image_url ? (
           <Image
-            src={property.main_image}
+            src={property.main_image_url}
             alt={property.title}
             fill
             className="object-cover"
@@ -166,9 +176,11 @@ export default function PropertyCard({ property, onSelect, className = '' }: Pro
         )}
         
         {/* Furnished Status */}
-        <div className="text-sm text-gray-600 mb-3">
-          {formatFurnished(property.furnished)}
-        </div>
+        {formatFurnished(property.furnished) && (
+          <div className="text-sm text-gray-600 mb-3">
+            {formatFurnished(property.furnished)}
+          </div>
+        )}
         
         {/* Price and Available Date */}
         <div className="flex items-center justify-between">

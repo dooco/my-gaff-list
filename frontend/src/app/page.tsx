@@ -4,8 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import SearchBar from '@/components/SearchBar';
 import PropertyGrid from '@/components/PropertyGrid';
-import UserMenu from '@/components/layout/UserMenu';
-import { NotificationBell } from '@/components/NotificationSystem';
 import { useProperties } from '@/hooks/useProperties';
 import { Property, PropertyFilters } from '@/types/property';
 
@@ -24,28 +22,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                My Gaff List
-              </h1>
-              <p className="text-sm text-gray-600">
-                Find your perfect rental in Ireland
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
-                {totalCount > 0 && `${totalCount} properties available`}
-              </div>
-              <NotificationBell />
-              <UserMenu />
-            </div>
-          </div>
+
+      {/* Hero Section */}
+      <section className="bg-gradient-to-b from-blue-50 to-white py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Find Your Perfect Rental in Ireland
+          </h1>
+          <p className="text-lg text-gray-600 mb-2">
+            Browse thousands of verified properties across Ireland
+          </p>
+          {totalCount > 0 && (
+            <p className="text-sm text-gray-500">
+              {totalCount} properties available
+            </p>
+          )}
         </div>
-      </header>
+      </section>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -108,15 +101,6 @@ export default function Home() {
           onPropertySelect={handlePropertySelect}
         />
       </main>
-
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center text-sm text-gray-500">
-            <p>© 2025 My Gaff List. Find your perfect rental home in Ireland.</p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

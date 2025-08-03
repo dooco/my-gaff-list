@@ -128,11 +128,11 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
             <div className="space-y-2">
               <div className="flex justify-between">
                 <span className="text-gray-600">County</span>
-                <span className="font-medium">{property.county.name}</span>
+                <span className="font-medium">{property.county_name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Town/City</span>
-                <span className="font-medium">{property.town.name}</span>
+                <span className="font-medium">{property.town_name}</span>
               </div>
               {property.address && (
                 <div className="flex justify-between">
@@ -153,10 +153,10 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
                 <span className="text-gray-600">Available From</span>
                 <span className="font-medium">{formatDate(property.available_from)}</span>
               </div>
-              {property.lease_length && (
+              {property.lease_duration && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Lease Length</span>
-                  <span className="font-medium">{property.lease_length}</span>
+                  <span className="font-medium">{property.lease_duration}</span>
                 </div>
               )}
             </div>
@@ -165,15 +165,17 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
       </section>
 
       {/* Location Map */}
-      <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-4">Location</h2>
-        <PropertyLocationMap
-          latitude={property.latitude}
-          longitude={property.longitude}
-          address={property.address || property.location_display}
-          title={property.title}
-        />
-      </section>
+      {property.latitude && property.longitude && (
+        <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Location</h2>
+          <PropertyLocationMap
+            latitude={property.latitude}
+            longitude={property.longitude}
+            address={property.address || property.location_display}
+            title={property.title}
+          />
+        </section>
+      )}
 
       {/* Energy Rating */}
       {property.ber_rating && (

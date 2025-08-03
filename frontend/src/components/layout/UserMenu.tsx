@@ -9,7 +9,8 @@ import {
   Cog6ToothIcon, 
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
-  CheckBadgeIcon
+  CheckBadgeIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/hooks/useAuth';
 import AuthModal from '@/components/auth/AuthModal';
@@ -123,7 +124,7 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
             {/* Menu Items */}
             <div className="py-2">
               <Link
-                href="/dashboard"
+                href={user.user_type === 'landlord' ? "/landlord/dashboard" : "/dashboard"}
                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -141,12 +142,12 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
               </Link>
 
               <Link
-                href="/enquiries"
+                href="/messages"
                 className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                 onClick={() => setIsMenuOpen(false)}
               >
-                <DocumentTextIcon className="h-4 w-4 mr-3" />
-                My Enquiries
+                <ChatBubbleLeftRightIcon className="h-4 w-4 mr-3" />
+                Messages
               </Link>
 
               {/* Landlord/Agent specific menu items */}
@@ -154,7 +155,7 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
                 <>
                   <div className="border-t border-gray-200 my-2"></div>
                   <Link
-                    href="/properties/manage"
+                    href="/landlord/properties"
                     className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     onClick={() => setIsMenuOpen(false)}
                   >

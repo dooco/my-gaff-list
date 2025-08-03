@@ -1,4 +1,4 @@
-# My Gaff List - Django + Next.js Full Stack Application
+# Rentified - Django + Next.js Full Stack Application
 
 A modern full-stack web application built with Django REST Framework backend and Next.js frontend, following 2025 best practices.
 

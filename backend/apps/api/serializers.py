@@ -50,6 +50,7 @@ class PropertySerializer(serializers.ModelSerializer):
     location_display = serializers.CharField(read_only=True)
     ber_color_class = serializers.CharField(read_only=True)
     landlord = LandlordSerializer(read_only=True)
+    owner = serializers.PrimaryKeyRelatedField(read_only=True)
     
     class Meta:
         model = Property
@@ -59,7 +60,7 @@ class PropertySerializer(serializers.ModelSerializer):
             'furnished', 'ber_rating', 'ber_color_class', 'features',
             'main_image', 'available_from', 'lease_length',
             'county', 'county_name', 'town', 'town_name', 'location_display',
-            'landlord', 'created_at', 'updated_at'
+            'landlord', 'owner', 'created_at', 'updated_at'
         ]
 
 
@@ -72,6 +73,7 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
     landlord = LandlordSerializer(read_only=True)
     county = CountySerializer(read_only=True)
     town = TownSerializer(read_only=True)
+    owner = serializers.PrimaryKeyRelatedField(read_only=True)
     
     class Meta:
         model = Property
@@ -81,7 +83,7 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
             'furnished', 'ber_rating', 'ber_number', 'ber_color_class', 
             'features', 'main_image', 'image_urls', 'available_from', 
             'lease_length', 'county', 'county_name', 'town', 'town_name', 
-            'location_display', 'landlord', 'created_at', 'updated_at'
+            'location_display', 'landlord', 'owner', 'created_at', 'updated_at'
         ]
 
 

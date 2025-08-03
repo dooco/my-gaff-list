@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import Modal from '@/components/Modal';
 import { 
   XMarkIcon, 
   PaperAirplaneIcon,
@@ -25,6 +26,7 @@ interface ContactLandlordModalProps {
       email: string;
       phone?: string;
     };
+    owner?: string;
   };
   onSuccess?: () => void;
 }
@@ -73,38 +75,42 @@ ${user?.first_name || 'Name'}`,
     setError(null);
 
     try {
-      // Call the real API endpoint
-      const response = await fetch(`${BASE_URL}/api/users/properties/enquiry/`, {
+      // First, check if we have the owner ID
+      if (!property.owner) {
+        throw new Error('Unable to contact landlord - property owner information missing');
+      }
+
+      // Format the message with viewing preferences
+      const fullMessage = `${form.message}\n\n**Viewing Preference:** ${form.viewing_preference}\n**Preferred Contact:** ${form.preferred_contact_method}\n${form.phone ? `**Phone:** ${form.phone}` : ''}`;
+
+      // Use the messaging API to start a conversation
+      const response = await fetch(`${BASE_URL}/api/messaging/conversations/start/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${tokens?.access}`,
         },
         body: JSON.stringify({
+          recipient_id: property.owner,
           property_id: property.id,
-          message: form.message,
-          phone: form.phone,
-          preferred_contact_method: form.preferred_contact_method,
-          viewing_preference: form.viewing_preference,
+          message: fullMessage,
         }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to send enquiry');
+        throw new Error(errorData.error || 'Failed to send message');
       }
 
       const data = await response.json();
       
-      if (data.success) {
-        setSuccess(true);
-        setTimeout(() => {
-          onSuccess?.();
-          onClose();
-        }, 2000);
-      } else {
-        throw new Error(data.message || 'Failed to send enquiry');
-      }
+      setSuccess(true);
+      setTimeout(() => {
+        onSuccess?.();
+        onClose();
+        // Redirect to the conversation
+        window.location.href = `/messages/${data.id}`;
+      }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send enquiry');
     } finally {
@@ -117,16 +123,14 @@ ${user?.first_name || 'Name'}`,
     setError(null);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <Modal isOpen={isOpen} onClose={onClose}>
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
             <h2 className="text-xl font-semibold text-gray-900">Contact Landlord</h2>
-            <p className="text-sm text-gray-600 mt-1">Send an enquiry about this property</p>
+            <p className="text-sm text-gray-600 mt-1">Start a conversation about this property</p>
           </div>
           <button
             onClick={onClose}
@@ -173,12 +177,12 @@ ${user?.first_name || 'Name'}`,
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <PaperAirplaneIcon className="h-8 w-8 text-green-600" />
             </div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Enquiry Sent Successfully!</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Message Sent Successfully!</h3>
             <p className="text-gray-600 mb-4">
-              Your message has been sent to the landlord. You should receive a response within 24-48 hours.
+              Your message has been sent to the landlord. You'll be redirected to your conversation.
             </p>
             <p className="text-sm text-gray-500">
-              You can track this enquiry in your <a href="/enquiries" className="text-blue-600 hover:text-blue-700">dashboard</a>.
+              You can continue the conversation in your <a href="/messages" className="text-blue-600 hover:text-blue-700">messages</a>.
             </p>
           </div>
         ) : (
@@ -296,7 +300,7 @@ ${user?.first_name || 'Name'}`,
                 ) : (
                   <>
                     <PaperAirplaneIcon className="h-4 w-4 mr-2" />
-                    Send Enquiry
+                    Send Message
                   </>
                 )}
               </button>
@@ -304,6 +308,6 @@ ${user?.first_name || 'Name'}`,
           </form>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }

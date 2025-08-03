@@ -4,6 +4,7 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --header-height: 64px; /* 4rem */
 }
 
 @theme inline {
@@ -24,4 +25,33 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Utility classes for layout spacing */
+.min-h-screen-header {
+  min-height: calc(100vh - var(--header-height));
+}
+
+/* Smooth scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Focus visible styles for accessibility */
+:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Skip link styling */
+.skip-link:focus {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  background: #3b82f6;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  z-index: 9999;
+  text-decoration: none;
 }

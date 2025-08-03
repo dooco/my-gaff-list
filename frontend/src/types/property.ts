@@ -38,7 +38,7 @@ export interface Property {
   ber_rating: string;
   ber_color_class: string;
   furnished: 'furnished' | 'unfurnished' | 'part_furnished';
-  main_image: string;
+  main_image_url?: string;
   location_display: string;
   county_name: string;
   town_name: string;
@@ -46,6 +46,7 @@ export interface Property {
   created_at: string;
   features: string[];
   landlord?: Landlord;
+  owner?: string;
 }
 
 export interface PropertyDetail extends Property {
@@ -54,13 +55,17 @@ export interface PropertyDetail extends Property {
   floor_area?: number;
   deposit?: string;
   ber_number: string;
-  image_urls: string[];
-  lease_length: string;
+  images: string[];
+  main_image_url?: string;
+  lease_duration?: string;
   address: string;
   updated_at: string;
-  county: County;
-  town: Town;
+  county_name: string;
+  town_name: string;
+  latitude?: number;
+  longitude?: number;
   landlord: Landlord;
+  owner?: string;
 }
 
 export interface PropertyFilters {

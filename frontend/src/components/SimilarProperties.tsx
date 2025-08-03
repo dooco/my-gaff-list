@@ -15,8 +15,8 @@ interface SimilarPropertiesProps {
     id: string;
     property_type: string;
     bedrooms: number;
-    county: { name: string; slug: string };
-    town: { name: string; slug: string };
+    county_name: string;
+    town_name: string;
     rent_monthly: string;
   };
   className?: string;
@@ -40,7 +40,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
             id: 'similar-1',
             title: 'Charming 2 Bed Apartment Near City Centre',
             rent_monthly: '2000',
-            location_display: `${currentProperty.town.name}, ${currentProperty.county.name}`,
+            location_display: `${currentProperty.town_name}, ${currentProperty.county_name}`,
             property_type: currentProperty.property_type,
             bedrooms: currentProperty.bedrooms,
             bathrooms: 1,
@@ -54,7 +54,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
             id: 'similar-2',
             title: `Lovely ${currentProperty.bedrooms} Bedroom ${currentProperty.property_type}`,
             rent_monthly: (parseInt(currentProperty.rent_monthly) - 200).toString(),
-            location_display: `${currentProperty.town.name}, ${currentProperty.county.name}`,
+            location_display: `${currentProperty.town_name}, ${currentProperty.county_name}`,
             property_type: currentProperty.property_type,
             bedrooms: currentProperty.bedrooms,
             bathrooms: 2,
@@ -68,7 +68,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
             id: 'similar-3',
             title: 'Modern Living in Prime Location',
             rent_monthly: (parseInt(currentProperty.rent_monthly) + 100).toString(),
-            location_display: `${currentProperty.county.name}`,
+            location_display: `${currentProperty.county_name}`,
             property_type: currentProperty.property_type,
             bedrooms: currentProperty.bedrooms,
             bathrooms: 2,
@@ -82,7 +82,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
             id: 'similar-4',
             title: 'Spacious Family Home with Garden',
             rent_monthly: (parseInt(currentProperty.rent_monthly) + 300).toString(),
-            location_display: `${currentProperty.town.name}, ${currentProperty.county.name}`,
+            location_display: `${currentProperty.town_name}, ${currentProperty.county_name}`,
             property_type: currentProperty.property_type === 'apartment' ? 'house' : currentProperty.property_type,
             bedrooms: currentProperty.bedrooms + 1,
             bathrooms: 2,
@@ -121,7 +121,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
     const searchParams = new URLSearchParams({
       property_type: currentProperty.property_type,
       bedrooms: currentProperty.bedrooms.toString(),
-      county: currentProperty.county.slug,
+      county: currentProperty.county_name.toLowerCase(),
       rent_max: (parseInt(currentProperty.rent_monthly) * 1.2).toString()
     });
     
@@ -190,7 +190,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
         <div>
           <h2 className="text-xl font-semibold text-gray-900">Similar Properties</h2>
           <p className="text-sm text-gray-600 mt-1">
-            Properties with similar features in {currentProperty.town.name}
+            Properties with similar features in {currentProperty.town_name}
           </p>
         </div>
         <button
@@ -223,7 +223,7 @@ export default function SimilarProperties({ currentProperty, className = '' }: S
             {currentProperty.bedrooms} bedroom{currentProperty.bedrooms !== 1 ? 's' : ''}
           </span>
           <span className="bg-gray-100 px-2 py-1 rounded">
-            Location: {currentProperty.town.name}
+            Location: {currentProperty.town_name}
           </span>
           <span className="bg-gray-100 px-2 py-1 rounded">
             Price range: €{Math.floor(parseInt(currentProperty.rent_monthly) * 0.8)} - €{Math.ceil(parseInt(currentProperty.rent_monthly) * 1.2)}

@@ -49,7 +49,7 @@ export default function LocationPicker({
           <option value="">All Counties</option>
           {counties.map((county) => (
             <option key={county.slug} value={county.slug}>
-              {county.name} ({county.towns_count} towns)
+              {county.name}
             </option>
           ))}
         </select>

@@ -16,6 +16,7 @@ from .serializers import (
     UserActivitySerializer, LoginSerializer, DashboardStatsSerializer
 )
 from apps.core.models import Property
+from apps.messaging.models import Conversation, Message
 
 
 class CustomTokenObtainPairView(TokenObtainPairView):
@@ -261,6 +262,31 @@ def create_property_enquiry(request):
         ip_address=request.META.get('REMOTE_ADDR'),
         user_agent=request.META.get('HTTP_USER_AGENT', '')
     )
+    
+    # Create a conversation for messaging
+    landlord_user = property_obj.owner  # Assuming property has an owner field
+    if landlord_user and landlord_user != user:
+        # Check if conversation already exists
+        existing_conversation = Conversation.objects.filter(
+            Q(participant1=user, participant2=landlord_user) |
+            Q(participant1=landlord_user, participant2=user),
+            property=property_obj
+        ).first()
+        
+        if not existing_conversation:
+            # Create new conversation
+            conversation = Conversation.objects.create(
+                participant1=user,
+                participant2=landlord_user,
+                property=property_obj
+            )
+            
+            # Create the initial message
+            Message.objects.create(
+                conversation=conversation,
+                sender=user,
+                content=message
+            )
     
     # Increment property enquiry count
     property_obj.increment_enquiry_count()
