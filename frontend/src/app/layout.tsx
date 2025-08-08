@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { NotificationProvider, ToastContainer } from "@/components/NotificationSystem";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -33,15 +34,17 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <AuthProvider>
-          <NotificationProvider>
-            <Header />
-            <main id="main-content" className="flex-grow">
-              {children}
-            </main>
-            <Footer />
-            <ToastContainer />
-            <DebugAuth />
-          </NotificationProvider>
+          <WebSocketProvider>
+            <NotificationProvider>
+              <Header />
+              <main id="main-content" className="flex-grow">
+                {children}
+              </main>
+              <Footer />
+              <ToastContainer />
+              <DebugAuth />
+            </NotificationProvider>
+          </WebSocketProvider>
         </AuthProvider>
       </body>
     </html>

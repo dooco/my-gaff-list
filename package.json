@@ -12,7 +12,9 @@
     "start": "turbo run start",
     "lint": "turbo run lint",
     "clean": "turbo run clean",
-    "backend:dev": "cd backend && source venv/bin/activate && python manage.py runserver",
+    "backend:dev": "cd backend && source venv/bin/activate && daphne -b 127.0.0.1 -p 8000 my_gaff_list.asgi:application",
+    "backend:dev:django": "cd backend && source venv/bin/activate && python manage.py runserver",
+    "backend:ws": "cd backend && source venv/bin/activate && python run_asgi.py",
     "frontend:dev": "cd frontend && npm run dev"
   },
   "devDependencies": {

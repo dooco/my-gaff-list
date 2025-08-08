@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'djoser',
     'corsheaders',
     'django_filters',
+    'channels',
     
     # Local apps
     'apps.core',
@@ -87,6 +88,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'my_gaff_list.wsgi.application'
+ASGI_APPLICATION = 'my_gaff_list.asgi.application'
 
 
 # Database
@@ -222,6 +224,19 @@ DJOSER = {
 CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='http://localhost:3000,http://127.0.0.1:3000').split(',')
 CORS_ALLOW_CREDENTIALS = True
 
+# WebSocket-specific CORS headers
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'authorization',
+    'content-type',
+    'origin',
+    'x-requested-with',
+    'sec-websocket-protocol',
+    'sec-websocket-version',
+    'sec-websocket-key',
+    'sec-websocket-extensions',
+]
+
 # For development - allow all origins (remove in production)
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
@@ -235,3 +250,20 @@ STATICFILES_DIRS = [
 # Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Django Channels
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    },
+}
+
+# For production, use Redis:
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#         'CONFIG': {
+#             "hosts": [('127.0.0.1', 6379)],
+#         },
+#     },
+# }

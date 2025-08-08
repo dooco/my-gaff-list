@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
@@ -12,8 +12,15 @@ import {
   ClockIcon,
   MagnifyingGlassIcon,
   ArchiveBoxIcon,
-  InboxIcon
+  InboxIcon,
+  CheckIcon,
+  WifiIcon
 } from '@heroicons/react/24/outline';
+import UserAvatar from '@/components/messaging/UserAvatar';
+import RoleBadge from '@/components/messaging/RoleBadge';
+import ConversationFilters from '@/components/messaging/ConversationFilters';
+import { ConversationListSkeleton } from '@/components/messaging/ConversationSkeleton';
+import { useRealtimeConversations, useBrowserNotifications } from '@/hooks/useRealtime';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -54,6 +61,14 @@ export default function Messages() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'landlords' | 'tenants'>('all');
+  
+  // Only enable real-time updates after authentication is confirmed
+  const enableRealtime = !authLoading && !!tokens?.access;
+  
+  // Real-time updates
+  const { updatedConversations, isConnected } = useRealtimeConversations();
+  const { permission, requestPermission, showNotification } = useBrowserNotifications();
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -89,6 +104,47 @@ export default function Messages() {
     }
   }, [authLoading, tokens?.access, showArchived]);
 
+  // Merge real-time updates with existing conversations
+  const mergedConversations = useMemo(() => {
+    const conversationMap = new Map<string, Conversation>();
+    
+    // Add existing conversations
+    conversations.forEach(conv => conversationMap.set(conv.id, conv));
+    
+    // Merge with real-time updates
+    updatedConversations.forEach((updatedConv, id) => {
+      const existing = conversationMap.get(id);
+      if (existing) {
+        // Check if this is a new message notification
+        if (updatedConv.last_message_at > existing.last_message_at && 
+            updatedConv.last_message_by?.id !== user?.id) {
+          // Show browser notification
+          if (permission === 'granted') {
+            const otherUser = updatedConv.other_participant;
+            const userName = otherUser.first_name || otherUser.email;
+            showNotification(`New message from ${userName}`, {
+              body: updatedConv.last_message,
+              tag: `message-${id}`,
+              data: { conversationId: id }
+            });
+          }
+        }
+        // Merge the updated conversation
+        conversationMap.set(id, { ...existing, ...updatedConv });
+      } else if (!showArchived && !updatedConv.is_archived) {
+        // New conversation
+        conversationMap.set(id, updatedConv);
+      }
+    });
+    
+    // Sort by last message time
+    return Array.from(conversationMap.values()).sort((a, b) => {
+      const dateA = new Date(a.last_message_at || a.created_at).getTime();
+      const dateB = new Date(b.last_message_at || b.created_at).getTime();
+      return dateB - dateA;
+    });
+  }, [conversations, updatedConversations, showArchived, permission, showNotification, user?.id]);
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -116,26 +172,61 @@ export default function Messages() {
     return participant.email;
   };
 
-  const filteredConversations = conversations.filter(conv => {
+  const filteredConversations = mergedConversations.filter(conv => {
     const searchLower = searchTerm.toLowerCase();
     const otherName = getParticipantName(conv.other_participant).toLowerCase();
     const propertyTitle = conv.property?.title?.toLowerCase() || '';
     const lastMessage = conv.last_message?.toLowerCase() || '';
 
-    return (
-      otherName.includes(searchLower) ||
+    // Search filter
+    const matchesSearch = otherName.includes(searchLower) ||
       propertyTitle.includes(searchLower) ||
-      lastMessage.includes(searchLower)
-    );
+      lastMessage.includes(searchLower);
+
+    // Type filter
+    let matchesFilter = true;
+    switch (filter) {
+      case 'unread':
+        matchesFilter = conv.unread_count > 0;
+        break;
+      case 'landlords':
+        matchesFilter = conv.other_participant.user_type === 'landlord' || conv.other_participant.user_type === 'agent';
+        break;
+      case 'tenants':
+        matchesFilter = conv.other_participant.user_type === 'renter' || conv.other_participant.user_type === 'tenant';
+        break;
+    }
+
+    return matchesSearch && matchesFilter;
   });
+
+  const unreadCount = mergedConversations.filter(c => c.unread_count > 0).length;
 
   if (loading) {
     return (
       <ProtectedRoute>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="text-gray-600 mt-4">Loading messages...</p>
+        <div className="min-h-screen bg-gray-50">
+          {/* Header */}
+          <div className="bg-white shadow-sm border-b border-gray-200">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                    <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-500 mr-2" />
+                    Messages
+                  </h1>
+                  <p className="text-gray-600 mt-1">
+                    Your conversations with landlords and tenants
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="mb-6">
+              <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+            </div>
+            <ConversationListSkeleton />
           </div>
         </div>
       </ProtectedRoute>
@@ -153,6 +244,12 @@ export default function Messages() {
                 <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                   <ChatBubbleLeftRightIcon className="h-6 w-6 text-blue-500 mr-2" />
                   Messages
+                  {isConnected && (
+                    <span className="ml-2 inline-flex items-center text-xs text-green-600">
+                      <WifiIcon className="h-3 w-3 mr-1" />
+                      Live
+                    </span>
+                  )}
                 </h1>
                 <p className="text-gray-600 mt-1">
                   Your conversations with landlords and tenants
@@ -189,6 +286,29 @@ export default function Messages() {
             </div>
           )}
 
+          {/* Notification Permission Prompt */}
+          {permission === 'default' && !loading && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+              <div>
+                <p className="text-blue-900 font-medium">Enable notifications</p>
+                <p className="text-blue-700 text-sm">Get notified when you receive new messages</p>
+              </div>
+              <button
+                onClick={requestPermission}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Enable
+              </button>
+            </div>
+          )}
+
+          {/* Filters */}
+          <ConversationFilters
+            activeFilter={filter}
+            onFilterChange={setFilter}
+            unreadCount={unreadCount}
+          />
+
           {/* Search */}
           <div className="mb-6">
             <div className="relative">
@@ -210,30 +330,32 @@ export default function Messages() {
                 <div
                   key={conversation.id}
                   onClick={() => router.push(`/messages/${conversation.id}`)}
-                  className="p-6 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="p-4 sm:p-6 hover:bg-gray-50 cursor-pointer transition-all hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       {/* Participant Info */}
                       <div className="flex items-center mb-2">
-                        <div className="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                          <UserIcon className="h-5 w-5 text-gray-500" />
+                        <div className="mr-3">
+                          <UserAvatar user={conversation.other_participant} size="md" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900">
-                            {getParticipantName(conversation.other_participant)}
-                          </h3>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className={`font-semibold text-gray-900 truncate ${conversation.unread_count > 0 ? 'font-bold' : ''}`}>
+                              {getParticipantName(conversation.other_participant)}
+                            </h3>
+                            <RoleBadge userType={conversation.other_participant.user_type} size="sm" />
+                          </div>
                           {conversation.property && (
                             <p className="text-sm text-gray-600 flex items-center">
-                              <BuildingOfficeIcon className="h-4 w-4 mr-1" />
-                              {conversation.property.title}
+                              <BuildingOfficeIcon className="h-4 w-4 mr-1 flex-shrink-0" />
+                              <span className="truncate">{conversation.property.title}</span>
                             </p>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right ml-2 flex-shrink-0">
                           {conversation.last_message_at && (
-                            <p className="text-sm text-gray-500 flex items-center">
-                              <ClockIcon className="h-4 w-4 mr-1" />
+                            <p className={`text-sm ${conversation.unread_count > 0 ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
                               {formatDate(conversation.last_message_at)}
                             </p>
                           )}
@@ -247,9 +369,9 @@ export default function Messages() {
 
                       {/* Last Message Preview */}
                       <div className="ml-13">
-                        <p className="text-gray-600 text-sm line-clamp-2">
+                        <p className={`text-sm line-clamp-2 ${conversation.unread_count > 0 ? 'text-gray-900 font-medium' : 'text-gray-600'}`}>
                           {conversation.last_message_by?.id === user?.id && (
-                            <span className="font-medium">You: </span>
+                            <span className="font-normal text-gray-500">You: </span>
                           )}
                           {conversation.last_message || 'No messages yet'}
                         </p>
