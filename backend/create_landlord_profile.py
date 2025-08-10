@@ -16,10 +16,10 @@ from apps.core.models import Landlord
 from apps.landlords.models import LandlordProfile
 
 def create_landlord_profiles():
-    """Create landlord profiles for users with user_type='landlord' who don't have one"""
+    """Create landlord profiles for users with user_type='landlord' or 'agent' who don't have one"""
     
-    # Get all landlord users without profiles
-    landlord_users = User.objects.filter(user_type='landlord')
+    # Get all landlord/agent users without profiles
+    landlord_users = User.objects.filter(user_type__in=['landlord', 'agent'])
     
     for user in landlord_users:
         # Check if profile already exists
@@ -32,7 +32,7 @@ def create_landlord_profiles():
             name=user.get_full_name() or user.username,
             email=user.email,
             phone=user.phone_number or '',
-            user_type='landlord',
+            user_type=user.user_type,
             company_name='',
             preferred_contact_method='both'
         )
@@ -46,7 +46,7 @@ def create_landlord_profiles():
         print(f"Created landlord profile for {user.email}")
     
     print("\nSummary:")
-    print(f"Total landlord users: {landlord_users.count()}")
+    print(f"Total landlord/agent users: {landlord_users.count()}")
     print(f"Total landlord profiles: {LandlordProfile.objects.count()}")
 
 if __name__ == '__main__':

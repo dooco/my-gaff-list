@@ -270,7 +270,8 @@ export default function PropertyContactPanel({
                 name: landlord?.display_name || landlord?.name || 'Property Owner',
                 email: landlord?.email || '',
                 phone: landlord?.phone
-              }
+              },
+              owner: property.owner
             }}
             onSuccess={() => {
               setShowContactModal(false);

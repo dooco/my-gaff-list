@@ -56,7 +56,7 @@ class LandlordRegistrationSerializer(serializers.ModelSerializer):
             last_name=validated_data['last_name'],
             phone_number=validated_data.get('phone_number', ''),
             password=validated_data['password'],
-            user_type='landlord'
+            user_type=user_type_choice
         )
         
         # Create landlord
