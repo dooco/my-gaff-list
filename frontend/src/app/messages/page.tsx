@@ -21,6 +21,8 @@ import RoleBadge from '@/components/messaging/RoleBadge';
 import ConversationFilters from '@/components/messaging/ConversationFilters';
 import { ConversationListSkeleton } from '@/components/messaging/ConversationSkeleton';
 import { useRealtimeConversations, useBrowserNotifications } from '@/hooks/useRealtime';
+import MessageModal from '@/components/messaging/MessageModal';
+import { decodeHtmlEntities } from '@/utils/htmlDecode';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
@@ -62,6 +64,8 @@ export default function Messages() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'landlords' | 'tenants'>('all');
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   
   // Only enable real-time updates after authentication is confirmed
   const enableRealtime = !authLoading && !!tokens?.access;
@@ -119,11 +123,11 @@ export default function Messages() {
         if (updatedConv.last_message_at > existing.last_message_at && 
             updatedConv.last_message_by?.id !== user?.id) {
           // Show browser notification
-          if (permission === 'granted') {
+          if (permission === 'granted' && updatedConv.other_participant) {
             const otherUser = updatedConv.other_participant;
-            const userName = otherUser.first_name || otherUser.email;
+            const userName = otherUser.first_name || otherUser.email || 'Someone';
             showNotification(`New message from ${userName}`, {
-              body: updatedConv.last_message,
+              body: decodeHtmlEntities(updatedConv.last_message || ''),
               tag: `message-${id}`,
               data: { conversationId: id }
             });
@@ -144,6 +148,16 @@ export default function Messages() {
       return dateB - dateA;
     });
   }, [conversations, updatedConversations, showArchived, permission, showNotification, user?.id]);
+
+  const handleOpenConversation = (conversationId: string) => {
+    setSelectedConversationId(conversationId);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedConversationId(null);
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -166,17 +180,18 @@ export default function Messages() {
   };
 
   const getParticipantName = (participant: User) => {
+    if (!participant) return 'Unknown User';
     if (participant.first_name || participant.last_name) {
       return `${participant.first_name} ${participant.last_name}`.trim();
     }
-    return participant.email;
+    return participant.email || 'Unknown User';
   };
 
   const filteredConversations = mergedConversations.filter(conv => {
     const searchLower = searchTerm.toLowerCase();
     const otherName = getParticipantName(conv.other_participant).toLowerCase();
     const propertyTitle = conv.property?.title?.toLowerCase() || '';
-    const lastMessage = conv.last_message?.toLowerCase() || '';
+    const lastMessage = conv.last_message ? decodeHtmlEntities(conv.last_message).toLowerCase() : '';
 
     // Search filter
     const matchesSearch = otherName.includes(searchLower) ||
@@ -329,7 +344,7 @@ export default function Messages() {
               {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  onClick={() => router.push(`/messages/${conversation.id}`)}
+                  onClick={() => handleOpenConversation(conversation.id)}
                   className="p-4 sm:p-6 hover:bg-gray-50 cursor-pointer transition-all hover:shadow-sm"
                 >
                   <div className="flex items-start justify-between">
@@ -337,14 +352,18 @@ export default function Messages() {
                       {/* Participant Info */}
                       <div className="flex items-center mb-2">
                         <div className="mr-3">
-                          <UserAvatar user={conversation.other_participant} size="md" />
+                          {conversation.other_participant && (
+                            <UserAvatar user={conversation.other_participant} size="md" />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <h3 className={`font-semibold text-gray-900 truncate ${conversation.unread_count > 0 ? 'font-bold' : ''}`}>
                               {getParticipantName(conversation.other_participant)}
                             </h3>
-                            <RoleBadge userType={conversation.other_participant.user_type} size="sm" />
+                            {conversation.other_participant?.user_type && (
+                              <RoleBadge userType={conversation.other_participant.user_type} size="sm" />
+                            )}
                           </div>
                           {conversation.property && (
                             <p className="text-sm text-gray-600 flex items-center">
@@ -373,7 +392,7 @@ export default function Messages() {
                           {conversation.last_message_by?.id === user?.id && (
                             <span className="font-normal text-gray-500">You: </span>
                           )}
-                          {conversation.last_message || 'No messages yet'}
+                          {conversation.last_message ? decodeHtmlEntities(conversation.last_message) : 'No messages yet'}
                         </p>
                       </div>
                     </div>
@@ -411,6 +430,16 @@ export default function Messages() {
           )}
         </div>
       </div>
+
+      {/* Message Modal */}
+      {selectedConversationId && (
+        <MessageModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          conversationId={selectedConversationId}
+          initialConversation={mergedConversations.find(c => c.id === selectedConversationId)}
+        />
+      )}
     </ProtectedRoute>
   );
 }

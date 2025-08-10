@@ -1,11 +1,12 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import PageNumberPagination, CursorPagination
 from django.contrib.auth import get_user_model
 from django.db.models import Q, Count, Max, Case, When, F
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
+from datetime import datetime, timedelta
 
 from .models import Conversation, Message
 from .serializers import (
@@ -22,6 +23,16 @@ class MessagePagination(PageNumberPagination):
     page_size = 50
     page_size_query_param = 'page_size'
     max_page_size = 100
+
+
+class MessageCursorPagination(CursorPagination):
+    """Cursor pagination for infinite scrolling of messages."""
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+    ordering = '-created_at'  # Most recent first
+    cursor_query_param = 'cursor'
+    cursor_query_description = 'The pagination cursor value.'
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -134,16 +145,69 @@ class ConversationViewSet(viewsets.ModelViewSet):
             )
         
         # Create the first message
-        Message.objects.create(
+        message = Message.objects.create(
             conversation=conversation,
             sender=request.user,
             content=serializer.validated_data['message']
         )
         
+        # Ensure conversation's last_message is updated (should be done by Message.save() but verify)
+        if not conversation.last_message:
+            conversation.last_message = message.content[:100]
+            conversation.last_message_at = message.created_at
+            conversation.last_message_by = message.sender
+            conversation.save(update_fields=['last_message', 'last_message_at', 'last_message_by'])
+        
         return Response(
             ConversationSerializer(conversation, context={'request': request}).data,
             status=status.HTTP_201_CREATED
         )
+    
+    @action(detail=True, methods=['get'])
+    def messages(self, request, pk=None):
+        """Get paginated messages for a conversation with cursor pagination."""
+        conversation = self.get_object()
+        
+        # Check if user is a participant
+        if request.user not in [conversation.participant1, conversation.participant2]:
+            return Response(
+                {'error': 'You are not a participant in this conversation.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        # Get query parameters
+        after = request.query_params.get('after')  # Load messages after this timestamp
+        before = request.query_params.get('before')  # Load messages before this timestamp
+        limit = int(request.query_params.get('limit', 20))
+        
+        # Build queryset
+        messages = conversation.messages.all()
+        
+        if after:
+            try:
+                after_date = datetime.fromisoformat(after.replace('Z', '+00:00'))
+                messages = messages.filter(created_at__gt=after_date)
+            except (ValueError, AttributeError):
+                pass
+        
+        if before:
+            try:
+                before_date = datetime.fromisoformat(before.replace('Z', '+00:00'))
+                messages = messages.filter(created_at__lt=before_date)
+            except (ValueError, AttributeError):
+                pass
+        
+        # Order and limit
+        messages = messages.order_by('-created_at')[:limit]
+        
+        # Serialize
+        serializer = MessageSerializer(messages, many=True)
+        
+        return Response({
+            'results': serializer.data,
+            'has_more': messages.count() == limit,
+            'conversation_id': str(conversation.id)
+        })
     
     @action(detail=True, methods=['post'])
     def send_message(self, request, pk=None):

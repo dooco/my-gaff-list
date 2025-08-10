@@ -3,14 +3,10 @@
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
+import UserMenu from './UserMenu';
 import { 
-  HomeIcon,
-  UserIcon,
-  HeartIcon,
-  DocumentTextIcon,
   ArrowRightOnRectangleIcon,
-  UserPlusIcon,
-  Cog6ToothIcon
+  UserPlusIcon
 } from '@heroicons/react/24/outline';
 
 interface MobileMenuProps {
@@ -25,7 +21,7 @@ interface MobileMenuProps {
 }
 
 export default function MobileMenu({ isOpen, onClose, navigation, currentPath }: MobileMenuProps) {
-  const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const menuRef = useRef<HTMLDivElement>(null);
 
   // Handle escape key
@@ -74,11 +70,6 @@ export default function MobileMenu({ isOpen, onClose, navigation, currentPath }:
     return currentPath.startsWith(href);
   };
 
-  const handleLogout = () => {
-    logout();
-    onClose();
-  };
-
   return (
     <>
       {/* Backdrop */}
@@ -101,23 +92,10 @@ export default function MobileMenu({ isOpen, onClose, navigation, currentPath }:
         aria-label="Mobile navigation menu"
       >
         <nav className="h-full overflow-y-auto">
-          {/* User info section */}
+          {/* User menu section - using the same component as desktop */}
           {isAuthenticated && user && (
             <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-                  {user.first_name && user.last_name 
-                    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
-                    : '?'
-                  }
-                </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900">
-                    {user.full_name || user.username}
-                  </div>
-                  <div className="text-xs text-gray-500">{user.email}</div>
-                </div>
-              </div>
+              <UserMenu className="w-full" />
             </div>
           )}
 
@@ -147,83 +125,8 @@ export default function MobileMenu({ isOpen, onClose, navigation, currentPath }:
             </div>
           </div>
 
-          {/* User menu items */}
-          {isAuthenticated && user ? (
-            <>
-              <div className="border-t border-gray-200 py-4">
-                <div className="px-2 space-y-1">
-                  <Link
-                    href={user.user_type === 'landlord' ? "/landlord/dashboard" : "/dashboard"}
-                    onClick={onClose}
-                    className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    <UserIcon className="h-5 w-5" />
-                    <span>Dashboard</span>
-                  </Link>
-
-                  <Link
-                    href="/saved"
-                    onClick={onClose}
-                    className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    <HeartIcon className="h-5 w-5" />
-                    <span>Saved Properties</span>
-                  </Link>
-
-                  <Link
-                    href="/enquiries"
-                    onClick={onClose}
-                    className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    <DocumentTextIcon className="h-5 w-5" />
-                    <span>My Enquiries</span>
-                  </Link>
-
-                  {(user.user_type === 'landlord' || user.user_type === 'agent') && (
-                    <>
-                      <Link
-                        href="/landlord/properties"
-                        onClick={onClose}
-                        className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        <BuildingOfficeIcon className="h-5 w-5" />
-                        <span>Manage Properties</span>
-                      </Link>
-                      <Link
-                        href="/landlord/enquiries"
-                        onClick={onClose}
-                        className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                      >
-                        <DocumentTextIcon className="h-5 w-5" />
-                        <span>Property Enquiries</span>
-                      </Link>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 py-4">
-                <div className="px-2 space-y-1">
-                  <Link
-                    href="/profile"
-                    onClick={onClose}
-                    className="flex items-center space-x-3 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  >
-                    <Cog6ToothIcon className="h-5 w-5" />
-                    <span>Account Settings</span>
-                  </Link>
-
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center space-x-3 w-full px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50"
-                  >
-                    <ArrowRightOnRectangleIcon className="h-5 w-5" />
-                    <span>Sign Out</span>
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
+          {/* Sign in/Sign up for non-authenticated users */}
+          {!isAuthenticated ? (
             <div className="border-t border-gray-200 py-4">
               <div className="px-2 space-y-1">
                 <Link
@@ -245,12 +148,9 @@ export default function MobileMenu({ isOpen, onClose, navigation, currentPath }:
                 </Link>
               </div>
             </div>
-          )}
+          ) : null}
         </nav>
       </div>
     </>
   );
 }
-
-// Add missing import
-const BuildingOfficeIcon = require('@heroicons/react/24/outline').BuildingOfficeIcon;

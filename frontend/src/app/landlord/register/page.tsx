@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { tokenStorage } from '@/utils/tokenStorage';
 import { 
   UserIcon, 
   BuildingOfficeIcon, 
@@ -105,10 +106,9 @@ export default function LandlordRegister() {
         throw new Error('Registration failed. Please check your information.');
       }
 
-      // Store tokens
-      localStorage.setItem('access_token', data.access);
-      localStorage.setItem('refresh_token', data.refresh);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Store tokens using tokenStorage
+      tokenStorage.setTokens({ access: data.access, refresh: data.refresh });
+      tokenStorage.setUser(data.user);
 
       // Redirect to landlord dashboard
       router.push('/landlord/dashboard');

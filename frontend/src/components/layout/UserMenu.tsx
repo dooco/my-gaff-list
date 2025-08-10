@@ -81,34 +81,36 @@ export default function UserMenu({ className = '' }: UserMenuProps) {
         {/* User Avatar Button */}
         <button
           onClick={() => setIsMenuOpen(!isMenuOpen)}
-          className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          className={`flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 transition-colors ${className.includes('w-full') ? 'w-full justify-between' : ''}`}
         >
-          <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
-            {user.profile?.avatar ? (
-              <img 
-                src={user.profile.avatar} 
-                alt={user.full_name}
-                className="w-8 h-8 rounded-full object-cover"
-              />
-            ) : (
-              getUserInitials(user)
-            )}
-          </div>
-          <div className="hidden md:block text-left">
-            <div className="text-sm font-medium text-gray-900 flex items-center">
-              {user.full_name || user.email}
-              {user.is_email_verified && (
-                <CheckBadgeIcon className="h-4 w-4 text-green-500 ml-1" />
+          <div className="flex items-center space-x-2">
+            <div className="w-8 h-8 bg-blue-600 text-white rounded-full flex items-center justify-center text-sm font-medium">
+              {user.profile?.avatar ? (
+                <img 
+                  src={user.profile.avatar} 
+                  alt={user.full_name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+              ) : (
+                getUserInitials(user)
               )}
             </div>
-            <div className="text-xs text-gray-500">{getUserTypeDisplay(user.user_type)}</div>
+            <div className={`${className.includes('w-full') ? 'block' : 'hidden md:block'} text-left`}>
+              <div className="text-sm font-medium text-gray-900 flex items-center">
+                {user.full_name || user.email}
+                {user.is_email_verified && (
+                  <CheckBadgeIcon className="h-4 w-4 text-green-500 ml-1" />
+                )}
+              </div>
+              <div className="text-xs text-gray-500">{getUserTypeDisplay(user.user_type)}</div>
+            </div>
           </div>
           <ChevronDownIcon className={`h-4 w-4 text-gray-400 transition-transform ${isMenuOpen ? 'rotate-180' : ''}`} />
         </button>
 
         {/* Dropdown Menu */}
         {isMenuOpen && (
-          <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+          <div className="absolute right-0 mt-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-lg shadow-lg z-[100]">
             {/* User Info Header */}
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="text-sm font-medium text-gray-900">{user.full_name || user.username}</div>

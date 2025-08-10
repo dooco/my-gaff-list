@@ -6,7 +6,6 @@ import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { NotificationProvider, ToastContainer } from "@/components/NotificationSystem";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import DebugAuth from "@/components/DebugAuth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,7 +41,6 @@ export default function RootLayout({
               </main>
               <Footer />
               <ToastContainer />
-              <DebugAuth />
             </NotificationProvider>
           </WebSocketProvider>
         </AuthProvider>

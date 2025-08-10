@@ -157,11 +157,13 @@ class Message(models.Model):
     
     # Content
     content = models.TextField()
+    original_content = models.TextField(blank=True, default='')  # Store original content before edit
     
     # Metadata
     created_at = models.DateTimeField(auto_now_add=True)
     edited_at = models.DateTimeField(null=True, blank=True)
     is_edited = models.BooleanField(default=False)
+    edit_history = models.JSONField(default=list, null=True, blank=True)  # Store edit history
     
     # Read status
     is_read = models.BooleanField(default=False)
@@ -169,6 +171,26 @@ class Message(models.Model):
     
     # System message flag (for notifications like "user joined", etc.)
     is_system_message = models.BooleanField(default=False)
+    
+    # Deletion fields
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='deleted_messages'
+    )
+    deletion_type = models.CharField(
+        max_length=10,
+        choices=[
+            ('soft', 'Soft Delete'),
+            ('hard', 'Hard Delete'),
+        ],
+        null=True,
+        blank=True,
+        default=None
+    )
     
     class Meta:
         ordering = ['created_at']
@@ -182,6 +204,13 @@ class Message(models.Model):
     
     def save(self, *args, **kwargs):
         is_new = self.pk is None
+        
+        # Ensure defaults are set for fields that might be None
+        if self.original_content is None:
+            self.original_content = ''
+        if self.edit_history is None:
+            self.edit_history = []
+            
         super().save(*args, **kwargs)
         
         # Update conversation's last message info
@@ -199,6 +228,89 @@ class Message(models.Model):
             self.is_read = True
             self.read_at = timezone.now()
             self.save(update_fields=['is_read', 'read_at'])
+    
+    def edit_message(self, new_content, user):
+        """Edit message content with history tracking."""
+        # Check if user can edit (only sender within 15 minutes)
+        if self.sender != user:
+            raise ValueError("Only the sender can edit their message")
+        
+        time_since_creation = timezone.now() - self.created_at
+        if time_since_creation.total_seconds() > 900:  # 15 minutes
+            raise ValueError("Messages can only be edited within 15 minutes")
+        
+        # Store original content if first edit
+        if not self.is_edited:
+            self.original_content = self.content
+        
+        # Initialize edit_history if it's None
+        if self.edit_history is None:
+            self.edit_history = []
+        
+        # Add to edit history
+        self.edit_history.append({
+            'content': self.content,
+            'edited_at': self.edited_at.isoformat() if self.edited_at else self.created_at.isoformat(),
+            'edited_by': str(user.id)
+        })
+        
+        # Update content
+        self.content = new_content
+        self.edited_at = timezone.now()
+        self.is_edited = True
+        self.save()
+    
+    def soft_delete(self, user):
+        """Soft delete the message."""
+        if self.sender != user and not user.is_staff:
+            raise ValueError("Only the sender or staff can delete this message")
+        
+        self.deleted_at = timezone.now()
+        self.deleted_by = user
+        self.deletion_type = 'soft'
+        self.save()
+    
+    @property
+    def is_deleted(self):
+        """Check if message is deleted."""
+        return self.deleted_at is not None
+    
+    def get_reaction_summary(self):
+        """Get summary of reactions for this message."""
+        from django.db.models import Count
+        return self.reactions.values('emoji').annotate(
+            count=Count('emoji')
+        ).order_by('-count')
+
+
+class MessageReaction(models.Model):
+    """
+    Emoji reactions to messages.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message = models.ForeignKey(
+        Message,
+        on_delete=models.CASCADE,
+        related_name='reactions'
+    )
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='message_reactions'
+    )
+    emoji = models.CharField(max_length=10)  # Store emoji unicode
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ('message', 'user', 'emoji')
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['message', 'emoji']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.email} reacted {self.emoji} to message {self.message.id}"
 
 
 class MessageAttachment(models.Model):

@@ -1,10 +1,31 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Conversation, Message, MessageAttachment
+from django.db.models import Count
+from .models import Conversation, Message, MessageAttachment, MessageReaction
 from apps.core.serializers import PropertyListSerializer
 from apps.users.serializers import UserSerializer
 
 User = get_user_model()
+
+
+class MessageReactionSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = MessageReaction
+        fields = ['id', 'user', 'emoji', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ReactionSummarySerializer(serializers.Serializer):
+    """Serializer for reaction summary."""
+    emoji = serializers.CharField()
+    count = serializers.IntegerField()
+    users = serializers.ListField(
+        child=serializers.CharField(),
+        required=False
+    )
+    has_reacted = serializers.BooleanField(required=False)
 
 
 class MessageAttachmentSerializer(serializers.ModelSerializer):
@@ -17,6 +38,11 @@ class MessageAttachmentSerializer(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     sender = UserSerializer(read_only=True)
     attachments = MessageAttachmentSerializer(many=True, read_only=True)
+    reactions = serializers.SerializerMethodField()
+    reaction_summary = serializers.SerializerMethodField()
+    is_deleted = serializers.BooleanField(read_only=True)
+    can_edit = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
     
     class Meta:
         model = Message
@@ -24,12 +50,68 @@ class MessageSerializer(serializers.ModelSerializer):
             'id', 'conversation', 'sender', 'content', 
             'created_at', 'edited_at', 'is_edited', 
             'is_read', 'read_at', 'is_system_message',
-            'attachments'
+            'attachments', 'reactions', 'reaction_summary',
+            'is_deleted', 'deleted_at', 'deletion_type',
+            'can_edit', 'can_delete'
         ]
         read_only_fields = [
             'id', 'conversation', 'sender', 'created_at', 
-            'edited_at', 'is_edited', 'read_at'
+            'edited_at', 'is_edited', 'read_at', 'deleted_at',
+            'deletion_type'
         ]
+    
+    def get_reactions(self, obj):
+        """Get all reactions for this message."""
+        reactions = obj.reactions.select_related('user').all()
+        return MessageReactionSerializer(reactions, many=True).data
+    
+    def get_reaction_summary(self, obj):
+        """Get summarized reaction data."""
+        request = self.context.get('request')
+        user = request.user if request else None
+        
+        summary = obj.reactions.values('emoji').annotate(
+            count=Count('emoji')
+        ).order_by('-count')
+        
+        result = []
+        for item in summary:
+            reaction_users = obj.reactions.filter(emoji=item['emoji']).select_related('user')
+            item_data = {
+                'emoji': item['emoji'],
+                'count': item['count'],
+                'users': [r.user.get_full_name() or r.user.email for r in reaction_users[:3]],
+                'has_reacted': False
+            }
+            
+            if user:
+                item_data['has_reacted'] = reaction_users.filter(user=user).exists()
+            
+            result.append(item_data)
+        
+        return result
+    
+    def get_can_edit(self, obj):
+        """Check if current user can edit this message."""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return False
+        
+        # Only sender can edit within 15 minutes
+        if obj.sender != request.user:
+            return False
+        
+        from django.utils import timezone
+        time_since = timezone.now() - obj.created_at
+        return time_since.total_seconds() <= 900  # 15 minutes
+    
+    def get_can_delete(self, obj):
+        """Check if current user can delete this message."""
+        request = self.context.get('request')
+        if not request or not request.user:
+            return False
+        
+        return obj.sender == request.user or request.user.is_staff
 
 
 class ConversationSerializer(serializers.ModelSerializer):
@@ -70,6 +152,32 @@ class ConversationSerializer(serializers.ModelSerializer):
         if request and request.user:
             return obj.is_archived_for(request.user)
         return False
+    
+    def to_representation(self, instance):
+        """Override to ensure last_message data is always populated."""
+        data = super().to_representation(instance)
+        
+        # If last_message is empty but conversation has messages, populate it
+        if not data.get('last_message') and instance.messages.exists():
+            latest_message = instance.messages.filter(
+                is_system_message=False
+            ).order_by('-created_at').first()
+            
+            if latest_message:
+                # Update the data to include last message info
+                data['last_message'] = latest_message.content[:100]
+                data['last_message_at'] = latest_message.created_at.isoformat()
+                data['last_message_by'] = UserSerializer(latest_message.sender).data
+                
+                # Also update the model instance for future requests
+                instance.last_message = latest_message.content[:100]
+                instance.last_message_at = latest_message.created_at
+                instance.last_message_by = latest_message.sender
+                instance.save(update_fields=[
+                    'last_message', 'last_message_at', 'last_message_by'
+                ])
+        
+        return data
 
 
 class ConversationDetailSerializer(ConversationSerializer):
@@ -93,6 +201,27 @@ class CreateMessageSerializer(serializers.ModelSerializer):
         if not value or not value.strip():
             raise serializers.ValidationError("Message content cannot be empty.")
         return value.strip()
+
+
+class EditMessageSerializer(serializers.Serializer):
+    """Serializer for editing a message."""
+    content = serializers.CharField(min_length=1, max_length=5000)
+    
+    def validate_content(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError("Message content cannot be empty.")
+        return value.strip()
+
+
+class AddReactionSerializer(serializers.Serializer):
+    """Serializer for adding a reaction."""
+    emoji = serializers.CharField(max_length=10)
+    
+    def validate_emoji(self, value):
+        # Basic emoji validation
+        if not value or len(value) > 10:
+            raise serializers.ValidationError("Invalid emoji.")
+        return value
 
 
 class StartConversationSerializer(serializers.Serializer):

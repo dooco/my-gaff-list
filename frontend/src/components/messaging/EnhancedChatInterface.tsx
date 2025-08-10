@@ -18,15 +18,18 @@ import {
 } from '@heroicons/react/24/outline';
 import { CheckIcon as CheckIconSolid } from '@heroicons/react/24/solid';
 import { enhancedWebSocketService } from '@/services/websocketEnhanced';
+import { decodeHtmlEntities } from '@/utils/htmlDecode';
 
 interface EnhancedChatInterfaceProps {
   conversation: Conversation;
   onBack?: () => void;
+  modalMode?: boolean;
 }
 
 export default function EnhancedChatInterface({ 
   conversation,
-  onBack 
+  onBack,
+  modalMode = false
 }: EnhancedChatInterfaceProps) {
   const { user } = useAuth();
   const { isConnected } = useWebSocket();
@@ -37,6 +40,7 @@ export default function EnhancedChatInterface({
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'connecting' | 'disconnected'>('disconnected');
   const [sending, setSending] = useState(false);
+  const [messagesLoaded, setMessagesLoaded] = useState(false);
   
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -44,6 +48,42 @@ export default function EnhancedChatInterface({
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const otherParticipant = conversation.other_participant;
+
+  // Fetch messages if not provided
+  useEffect(() => {
+    const fetchMessages = async () => {
+      if (conversation.messages && conversation.messages.length > 0) {
+        setMessagesLoaded(true);
+        return;
+      }
+
+      // If no messages provided, fetch them
+      try {
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'}/api/messaging/conversations/${conversation.id}/messages/`,
+          {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.results) {
+            // Messages come in reverse order (newest first), so reverse them
+            setMessages(data.results.reverse());
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching messages:', error);
+      } finally {
+        setMessagesLoaded(true);
+      }
+    };
+
+    fetchMessages();
+  }, [conversation.id, conversation.messages]);
 
   // Initialize WebSocket listeners
   useEffect(() => {
@@ -64,11 +104,49 @@ export default function EnhancedChatInterface({
       switch(data.type) {
         case 'new_message':
           const newMessage = data.message;
+          const tempId = data.temp_id;
+          
           setMessages(prev => {
+            // If this is our own message with a temp_id, replace the optimistic message
+            if (tempId) {
+              const tempIndex = prev.findIndex(m => m.id === tempId);
+              if (tempIndex !== -1) {
+                console.log('Replacing optimistic message with server response');
+                const updated = [...prev];
+                updated[tempIndex] = newMessage;
+                return updated;
+              }
+            }
+            
+            // Check if this is our own message by comparing sender and content
+            // This handles the case where we sent it but don't have temp_id
+            if (newMessage.sender.id === user?.id) {
+              const recentOptimistic = prev.find(m => 
+                m.id.startsWith('temp-') && 
+                m.content === newMessage.content &&
+                m.sender.id === user?.id
+              );
+              
+              if (recentOptimistic) {
+                console.log('Found matching optimistic message by content, replacing');
+                return prev.map(m => m.id === recentOptimistic.id ? newMessage : m);
+              }
+            }
+            
             // Check if message already exists (to avoid duplicates)
             const exists = prev.some(m => m.id === newMessage.id);
-            if (exists) return prev;
-            return [...prev, newMessage];
+            if (exists) {
+              console.log('Message already exists, skipping');
+              return prev;
+            }
+            
+            // Only add the message if it's from another user
+            // (our messages are already added optimistically)
+            if (newMessage.sender.id !== user?.id) {
+              return [...prev, newMessage];
+            }
+            
+            return prev;
           });
           
           // Mark as read if from other user
@@ -162,7 +240,7 @@ export default function EnhancedChatInterface({
     if (!messageText.trim() || !isConnected || sending) return;
 
     setSending(true);
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     
     // Add optimistic message
     const optimisticMessage: Message = {
@@ -196,8 +274,13 @@ export default function EnhancedChatInterface({
     
     setMessages(prev => [...prev, optimisticMessage]);
     
-    // Send via WebSocket
-    enhancedWebSocketService.sendMessage(conversation.id, messageText.trim());
+    // Send via WebSocket with temp_id for tracking
+    enhancedWebSocketService.send({
+      type: 'send_message',
+      conversation_id: conversation.id,
+      content: messageText.trim(),
+      temp_id: tempId
+    });
     
     // Clear input
     setMessageText('');
@@ -261,7 +344,7 @@ export default function EnhancedChatInterface({
               }
             `}
           >
-            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">{decodeHtmlEntities(message.content)}</p>
             
             <div className={`flex items-center gap-1 mt-1 ${isOwnMessage ? 'justify-end' : 'justify-start'}`}>
               <span className={`text-xs ${isOwnMessage ? 'text-blue-100' : 'text-gray-500'}`}>
@@ -300,47 +383,49 @@ export default function EnhancedChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      {/* Header - Fixed at top */}
-      <div className="flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm">
-        <div className="flex items-center gap-3">
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="p-1 hover:bg-gray-100 rounded-full transition-colors"
-            >
-              <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
-            </button>
-          )}
-          
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold">
-            {otherParticipant.first_name?.[0] || otherParticipant.email[0].toUpperCase()}
-          </div>
-          
-          <div>
-            <h3 className="font-semibold text-gray-900">
-              {otherParticipant.full_name || otherParticipant.email}
-            </h3>
-            <div className="flex items-center gap-2 text-xs">
-              {otherUserTyping ? (
-                <span className="text-green-600 animate-pulse">typing...</span>
-              ) : (
-                <>
-                  <WifiIcon className={`h-3 w-3 ${getStatusColor()}`} />
-                  <span className={getStatusColor()}>
-                    {connectionStatus === 'connected' ? 'Online' : 
-                     connectionStatus === 'connecting' ? 'Connecting...' : 'Offline'}
-                  </span>
-                </>
-              )}
+    <div className={`flex flex-col ${modalMode ? 'h-full' : 'h-screen'} bg-gray-50`}>
+      {/* Header - Fixed at top - Only show in non-modal mode */}
+      {!modalMode && (
+        <div className="flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm">
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <ArrowLeftIcon className="h-5 w-5 text-gray-600" />
+              </button>
+            )}
+            
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center text-white font-semibold">
+              {otherParticipant.first_name?.[0] || otherParticipant.email[0].toUpperCase()}
+            </div>
+            
+            <div>
+              <h3 className="font-semibold text-gray-900">
+                {otherParticipant.full_name || otherParticipant.email}
+              </h3>
+              <div className="flex items-center gap-2 text-xs">
+                {otherUserTyping ? (
+                  <span className="text-green-600 animate-pulse">typing...</span>
+                ) : (
+                  <>
+                    <WifiIcon className={`h-3 w-3 ${getStatusColor()}`} />
+                    <span className={getStatusColor()}>
+                      {connectionStatus === 'connected' ? 'Online' : 
+                       connectionStatus === 'connecting' ? 'Connecting...' : 'Offline'}
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
-          <EllipsisHorizontalIcon className="h-5 w-5 text-gray-600" />
-        </button>
-      </div>
+          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
+            <EllipsisHorizontalIcon className="h-5 w-5 text-gray-600" />
+          </button>
+        </div>
+      )}
 
       {/* Messages Area - Scrollable, takes remaining space */}
       <div 

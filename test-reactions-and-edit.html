@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Message Reactions and Edit/Delete</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .user-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            background: #fafafa;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 8px;
+            position: relative;
+        }
+        .own-message {
+            background: #007bff;
+            color: white;
+            margin-left: 20%;
+            text-align: right;
+        }
+        .other-message {
+            background: #e9ecef;
+            margin-right: 20%;
+        }
+        .reactions {
+            display: flex;
+            gap: 5px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+        }
+        .reaction {
+            background: white;
+            border: 1px solid #ddd;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .reaction.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        .message-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: none;
+        }
+        .message:hover .message-actions {
+            display: block;
+        }
+        .message.deleted {
+            background: #f8f9fa;
+            color: #6c757d;
+            font-style: italic;
+        }
+        .message.edited::after {
+            content: " (edited)";
+            font-size: 11px;
+            opacity: 0.7;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+        }
+        .status {
+            padding: 10px;
+            background: #e7f3ff;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .emoji-picker {
+            display: inline-block;
+            margin: 5px;
+        }
+        .emoji-btn {
+            padding: 5px;
+            margin: 2px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 4px;
+        }
+        .emoji-btn:hover {
+            background: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Message Reactions and Edit/Delete</h1>
+    
+    <div class="container">
+        <!-- User 1 Section -->
+        <div class="user-section">
+            <h2>User 1: jim@fixit.ie (Landlord)</h2>
+            <div class="status" id="status1">Disconnected</div>
+            
+            <div>
+                <input type="text" id="token1" placeholder="Enter JWT token for User 1" style="width: 80%;">
+                <button onclick="connectUser1()">Connect</button>
+            </div>
+            
+            <div class="messages" id="messages1"></div>
+            
+            <div>
+                <input type="text" id="messageInput1" placeholder="Type a message..." style="width: 60%;">
+                <button onclick="sendMessage1()">Send</button>
+            </div>
+            
+            <div class="emoji-picker">
+                Quick Reactions:
+                <button class="emoji-btn" onclick="addReactionToLast1('👍')">👍</button>
+                <button class="emoji-btn" onclick="addReactionToLast1('❤️')">❤️</button>
+                <button class="emoji-btn" onclick="addReactionToLast1('😂')">😂</button>
+                <button class="emoji-btn" onclick="addReactionToLast1('😮')">😮</button>
+                <button class="emoji-btn" onclick="addReactionToLast1('😢')">😢</button>
+                <button class="emoji-btn" onclick="addReactionToLast1('🎉')">🎉</button>
+            </div>
+        </div>
+        
+        <!-- User 2 Section -->
+        <div class="user-section">
+            <h2>User 2: padraigdooley@gmail.com (Tenant)</h2>
+            <div class="status" id="status2">Disconnected</div>
+            
+            <div>
+                <input type="text" id="token2" placeholder="Enter JWT token for User 2" style="width: 80%;">
+                <button onclick="connectUser2()">Connect</button>
+            </div>
+            
+            <div class="messages" id="messages2"></div>
+            
+            <div>
+                <input type="text" id="messageInput2" placeholder="Type a message..." style="width: 60%;">
+                <button onclick="sendMessage2()">Send</button>
+            </div>
+            
+            <div class="emoji-picker">
+                Quick Reactions:
+                <button class="emoji-btn" onclick="addReactionToLast2('👍')">👍</button>
+                <button class="emoji-btn" onclick="addReactionToLast2('❤️')">❤️</button>
+                <button class="emoji-btn" onclick="addReactionToLast2('😂')">😂</button>
+                <button class="emoji-btn" onclick="addReactionToLast2('😮')">😮</button>
+                <button class="emoji-btn" onclick="addReactionToLast2('😢')">😢</button>
+                <button class="emoji-btn" onclick="addReactionToLast2('🎉')">🎉</button>
+            </div>
+        </div>
+    </div>
+    
+    <div style="margin-top: 20px; padding: 20px; background: white; border-radius: 8px;">
+        <h3>Test Instructions:</h3>
+        <ol>
+            <li>Generate tokens for both users using the Django command</li>
+            <li>Enter tokens and click Connect for both users</li>
+            <li>Send messages from either user</li>
+            <li>Click on messages to add reactions</li>
+            <li>Hover over messages to see Edit/Delete options</li>
+            <li>Test editing messages (only within 15 minutes)</li>
+            <li>Test deleting messages (soft delete)</li>
+        </ol>
+        
+        <h3>Generate Tokens:</h3>
+        <pre>
+python manage.py shell -c "
+from rest_framework_simplejwt.tokens import RefreshToken
+from apps.users.models import User
+
+# Get users
+user1 = User.objects.get(email='jim@fixit.ie')
+user2 = User.objects.get(email='padraigdooley@gmail.com')
+
+# Generate tokens
+for user in [user1, user2]:
+    refresh = RefreshToken.for_user(user)
+    print(f'Token for {user.email}:')
+    print(refresh.access_token)
+    print()
+"
+        </pre>
+    </div>
+
+    <script>
+        let ws1 = null;
+        let ws2 = null;
+        let conversationId = null;
+        let messages = {};
+        let lastMessageId = null;
+
+        function connectUser1() {
+            const token = document.getElementById('token1').value;
+            if (!token) {
+                alert('Please enter a token for User 1');
+                return;
+            }
+            
+            ws1 = new WebSocket(`ws://localhost:8000/ws/messages/?token=${token}`);
+            
+            ws1.onopen = () => {
+                document.getElementById('status1').textContent = 'Connected';
+                document.getElementById('status1').style.background = '#d4edda';
+                
+                // Join conversation if we have one
+                if (conversationId) {
+                    ws1.send(JSON.stringify({
+                        type: 'join_conversation',
+                        conversation_id: conversationId
+                    }));
+                }
+            };
+            
+            ws1.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data, 'messages1', 'User 1');
+            };
+            
+            ws1.onerror = (error) => {
+                console.error('User 1 WebSocket error:', error);
+                document.getElementById('status1').textContent = 'Error';
+                document.getElementById('status1').style.background = '#f8d7da';
+            };
+            
+            ws1.onclose = () => {
+                document.getElementById('status1').textContent = 'Disconnected';
+                document.getElementById('status1').style.background = '#fff3cd';
+            };
+        }
+
+        function connectUser2() {
+            const token = document.getElementById('token2').value;
+            if (!token) {
+                alert('Please enter a token for User 2');
+                return;
+            }
+            
+            ws2 = new WebSocket(`ws://localhost:8000/ws/messages/?token=${token}`);
+            
+            ws2.onopen = () => {
+                document.getElementById('status2').textContent = 'Connected';
+                document.getElementById('status2').style.background = '#d4edda';
+                
+                // Join conversation if we have one
+                if (conversationId) {
+                    ws2.send(JSON.stringify({
+                        type: 'join_conversation',
+                        conversation_id: conversationId
+                    }));
+                }
+            };
+            
+            ws2.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                handleMessage(data, 'messages2', 'User 2');
+            };
+            
+            ws2.onerror = (error) => {
+                console.error('User 2 WebSocket error:', error);
+                document.getElementById('status2').textContent = 'Error';
+                document.getElementById('status2').style.background = '#f8d7da';
+            };
+            
+            ws2.onclose = () => {
+                document.getElementById('status2').textContent = 'Disconnected';
+                document.getElementById('status2').style.background = '#fff3cd';
+            };
+        }
+
+        function handleMessage(data, elementId, userName) {
+            console.log(`${userName} received:`, data);
+            
+            if (data.type === 'new_message') {
+                const message = data.message;
+                lastMessageId = message.id;
+                messages[message.id] = message;
+                renderMessages();
+            } else if (data.type === 'reaction_added') {
+                updateReaction(data.message_id, data.reaction, 'add');
+                renderMessages();
+            } else if (data.type === 'reaction_removed') {
+                updateReaction(data.message_id, {emoji: data.emoji, user_id: data.user_id}, 'remove');
+                renderMessages();
+            } else if (data.type === 'message_edited') {
+                messages[data.message.id] = {...data.message, is_edited: true};
+                renderMessages();
+            } else if (data.type === 'message_deleted') {
+                if (messages[data.message_id]) {
+                    messages[data.message_id].is_deleted = true;
+                    renderMessages();
+                }
+            }
+        }
+
+        function updateReaction(messageId, reaction, action) {
+            if (!messages[messageId]) return;
+            
+            if (!messages[messageId].reactions) {
+                messages[messageId].reactions = {};
+            }
+            
+            if (action === 'add') {
+                if (!messages[messageId].reactions[reaction.emoji]) {
+                    messages[messageId].reactions[reaction.emoji] = [];
+                }
+                messages[messageId].reactions[reaction.emoji].push(reaction.user);
+            } else if (action === 'remove') {
+                if (messages[messageId].reactions[reaction.emoji]) {
+                    messages[messageId].reactions[reaction.emoji] = 
+                        messages[messageId].reactions[reaction.emoji].filter(u => u.id !== reaction.user_id);
+                    
+                    if (messages[messageId].reactions[reaction.emoji].length === 0) {
+                        delete messages[messageId].reactions[reaction.emoji];
+                    }
+                }
+            }
+        }
+
+        function renderMessages() {
+            const messageList = Object.values(messages).sort((a, b) => 
+                new Date(a.created_at) - new Date(b.created_at)
+            );
+            
+            // Render for both users
+            renderMessagesForUser('messages1', messageList, 'jim@fixit.ie');
+            renderMessagesForUser('messages2', messageList, 'padraigdooley@gmail.com');
+        }
+
+        function renderMessagesForUser(elementId, messageList, userEmail) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            messageList.forEach(msg => {
+                const isOwn = msg.sender.email === userEmail;
+                const div = document.createElement('div');
+                div.className = `message ${isOwn ? 'own-message' : 'other-message'}`;
+                
+                if (msg.is_deleted) {
+                    div.className += ' deleted';
+                    div.innerHTML = 'This message was deleted';
+                } else {
+                    let content = msg.content;
+                    if (msg.is_edited) {
+                        div.className += ' edited';
+                    }
+                    
+                    div.innerHTML = `
+                        <div>${content}</div>
+                        <div class="message-actions">
+                            ${isOwn ? `
+                                <button onclick="editMessage('${msg.id}', '${elementId}')">✏️</button>
+                                <button onclick="deleteMessage('${msg.id}', '${elementId}')">🗑️</button>
+                            ` : ''}
+                        </div>
+                        <div class="reactions">
+                            ${msg.reactions ? Object.entries(msg.reactions).map(([emoji, users]) => 
+                                `<span class="reaction">${emoji} ${users.length}</span>`
+                            ).join('') : ''}
+                        </div>
+                    `;
+                    
+                    div.onclick = () => promptReaction(msg.id, elementId);
+                }
+                
+                container.appendChild(div);
+            });
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function sendMessage1() {
+            const input = document.getElementById('messageInput1');
+            const content = input.value.trim();
+            if (!content || !ws1) return;
+            
+            // Set conversation ID (you should get this from your API)
+            if (!conversationId) {
+                conversationId = prompt('Enter conversation ID:');
+                if (conversationId && ws1.readyState === WebSocket.OPEN) {
+                    ws1.send(JSON.stringify({
+                        type: 'join_conversation',
+                        conversation_id: conversationId
+                    }));
+                }
+                if (conversationId && ws2 && ws2.readyState === WebSocket.OPEN) {
+                    ws2.send(JSON.stringify({
+                        type: 'join_conversation',
+                        conversation_id: conversationId
+                    }));
+                }
+            }
+            
+            ws1.send(JSON.stringify({
+                type: 'send_message',
+                conversation_id: conversationId,
+                content: content
+            }));
+            
+            input.value = '';
+        }
+
+        function sendMessage2() {
+            const input = document.getElementById('messageInput2');
+            const content = input.value.trim();
+            if (!content || !ws2) return;
+            
+            // Set conversation ID (you should get this from your API)
+            if (!conversationId) {
+                conversationId = prompt('Enter conversation ID:');
+                if (conversationId && ws2.readyState === WebSocket.OPEN) {
+                    ws2.send(JSON.stringify({
+                        type: 'join_conversation',
+                        conversation_id: conversationId
+                    }));
+                }
+                if (conversationId && ws1 && ws1.readyState === WebSocket.OPEN) {
+                    ws1.send(JSON.stringify({
+                        type: 'join_conversation',
+                        conversation_id: conversationId
+                    }));
+                }
+            }
+            
+            ws2.send(JSON.stringify({
+                type: 'send_message',
+                conversation_id: conversationId,
+                content: content
+            }));
+            
+            input.value = '';
+        }
+
+        function addReactionToLast1(emoji) {
+            if (!lastMessageId || !ws1) return;
+            
+            ws1.send(JSON.stringify({
+                type: 'add_reaction',
+                message_id: lastMessageId,
+                emoji: emoji
+            }));
+        }
+
+        function addReactionToLast2(emoji) {
+            if (!lastMessageId || !ws2) return;
+            
+            ws2.send(JSON.stringify({
+                type: 'add_reaction',
+                message_id: lastMessageId,
+                emoji: emoji
+            }));
+        }
+
+        function promptReaction(messageId, elementId) {
+            const emoji = prompt('Enter emoji reaction (or leave empty to cancel):');
+            if (!emoji) return;
+            
+            const ws = elementId === 'messages1' ? ws1 : ws2;
+            if (!ws) return;
+            
+            ws.send(JSON.stringify({
+                type: 'add_reaction',
+                message_id: messageId,
+                emoji: emoji
+            }));
+        }
+
+        function editMessage(messageId, elementId) {
+            const newContent = prompt('Edit message:');
+            if (!newContent) return;
+            
+            const ws = elementId === 'messages1' ? ws1 : ws2;
+            if (!ws) return;
+            
+            ws.send(JSON.stringify({
+                type: 'edit_message',
+                message_id: messageId,
+                content: newContent
+            }));
+        }
+
+        function deleteMessage(messageId, elementId) {
+            if (!confirm('Delete this message?')) return;
+            
+            const ws = elementId === 'messages1' ? ws1 : ws2;
+            if (!ws) return;
+            
+            ws.send(JSON.stringify({
+                type: 'delete_message',
+                message_id: messageId,
+                deletion_type: 'soft'
+            }));
+        }
+    </script>
+</body>
+</html>

@@ -237,6 +237,17 @@ CORS_ALLOW_HEADERS = [
     'sec-websocket-extensions',
 ]
 
+# WebSocket allowed origins for additional security
+ALLOWED_WS_ORIGINS = config('ALLOWED_WS_ORIGINS', default='http://localhost:3000,http://127.0.0.1:3000,ws://localhost:3000,ws://127.0.0.1:3000').split(',')
+
+# Cache configuration for rate limiting
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'unique-snowflake',
+    }
+}
+
 # For development - allow all origins (remove in production)
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True

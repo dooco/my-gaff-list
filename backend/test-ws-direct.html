@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Direct Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+        }
+        .section {
+            margin: 20px 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        #logs {
+            height: 300px;
+            overflow-y: auto;
+            background: #f0f0f0;
+            padding: 10px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        .error { color: red; }
+        .success { color: green; }
+        .info { color: blue; }
+        button {
+            margin: 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>WebSocket Direct Test</h1>
+    
+    <div class="section">
+        <h3>Setup</h3>
+        <label>Token (paste from console):</label><br>
+        <textarea id="token" rows="3" cols="100" placeholder="Paste JWT token here"></textarea><br>
+        <button onclick="connect()">Connect WebSocket</button>
+        <button onclick="disconnect()">Disconnect</button>
+        <span id="status">Disconnected</span>
+    </div>
+
+    <div class="section">
+        <h3>Actions</h3>
+        <button onclick="joinConversation()">Join Conversation</button>
+        <button onclick="sendTestMessage()">Send Test Message</button>
+        <button onclick="sendPing()">Send Ping</button>
+        <br>
+        <input type="text" id="messageInput" placeholder="Message text" style="width: 300px;">
+    </div>
+
+    <div class="section">
+        <h3>Logs</h3>
+        <div id="logs"></div>
+    </div>
+
+    <script>
+        let ws = null;
+        const conversationId = '139cddcd-ab35-401c-bb30-a78896a32314';
+        
+        function log(message, type = 'info') {
+            const logs = document.getElementById('logs');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logs.appendChild(entry);
+            logs.scrollTop = logs.scrollHeight;
+        }
+
+        function connect() {
+            let token = document.getElementById('token').value;
+            // Clean the token - remove all whitespace and newlines
+            token = token.replace(/[\r\n\s]+/g, '');
+            
+            if (!token) {
+                log('Please enter a token', 'error');
+                return;
+            }
+
+            log(`Token (cleaned): ${token.substring(0, 50)}...`, 'info');
+            const wsUrl = `ws://localhost:8000/ws/messages/?token=${encodeURIComponent(token)}`;
+            log(`Connecting to WebSocket...`, 'info');
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    log('WebSocket connected', 'success');
+                    document.getElementById('status').textContent = 'Connected';
+                    document.getElementById('status').style.color = 'green';
+                };
+
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    log(`Received: ${JSON.stringify(data)}`, 'info');
+                    
+                    if (data.type === 'new_message') {
+                        log(`NEW MESSAGE: ${data.message.content}`, 'success');
+                    }
+                };
+
+                ws.onerror = (error) => {
+                    log(`WebSocket error: ${error}`, 'error');
+                };
+
+                ws.onclose = (event) => {
+                    log(`WebSocket closed: ${event.code} - ${event.reason}`, 'error');
+                    document.getElementById('status').textContent = 'Disconnected';
+                    document.getElementById('status').style.color = 'red';
+                };
+            } catch (error) {
+                log(`Failed to create WebSocket: ${error}`, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function joinConversation() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+
+            const message = {
+                type: 'join_conversation',
+                conversation_id: conversationId
+            };
+            
+            log(`Sending: ${JSON.stringify(message)}`, 'info');
+            ws.send(JSON.stringify(message));
+        }
+
+        function sendTestMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+
+            const text = document.getElementById('messageInput').value || 'Test message ' + Date.now();
+            const message = {
+                type: 'send_message',
+                conversation_id: conversationId,
+                content: text
+            };
+            
+            log(`Sending: ${JSON.stringify(message)}`, 'info');
+            ws.send(JSON.stringify(message));
+        }
+
+        function sendPing() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('WebSocket not connected', 'error');
+                return;
+            }
+
+            const message = {
+                type: 'ping',
+                timestamp: Date.now()
+            };
+            
+            log(`Sending: ${JSON.stringify(message)}`, 'info');
+            ws.send(JSON.stringify(message));
+        }
+    </script>
+</body>
+</html>

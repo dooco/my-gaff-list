@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dual User WebSocket Test - Rentified</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: #2a2a2a;
+            padding: 15px;
+            border-bottom: 2px solid #00ff00;
+            text-align: center;
+        }
+        
+        header h1 {
+            color: #00ff00;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .conversation-info {
+            color: #888;
+            font-size: 12px;
+        }
+        
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .user-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #333;
+            margin: 10px;
+            background: #222;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .user-panel.renter {
+            border-color: #4CAF50;
+        }
+        
+        .user-panel.landlord {
+            border-color: #2196F3;
+        }
+        
+        .user-header {
+            padding: 15px;
+            background: #2a2a2a;
+            border-bottom: 1px solid #444;
+        }
+        
+        .user-panel.renter .user-header {
+            background: linear-gradient(135deg, #4CAF50 0%, #2a2a2a 100%);
+        }
+        
+        .user-panel.landlord .user-header {
+            background: linear-gradient(135deg, #2196F3 0%, #2a2a2a 100%);
+        }
+        
+        .user-name {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        
+        .user-email {
+            font-size: 12px;
+            color: #aaa;
+        }
+        
+        .connection-status {
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .status-disconnected {
+            background: #f44336;
+            color: white;
+        }
+        
+        .status-connected {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .status-connecting {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .token-section {
+            padding: 10px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #333;
+        }
+        
+        .token-input {
+            width: 100%;
+            padding: 8px;
+            background: #000;
+            color: #0f0;
+            border: 1px solid #333;
+            font-family: monospace;
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 8px;
+        }
+        
+        button {
+            flex: 1;
+            padding: 8px;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+        
+        button:hover:not(:disabled) {
+            background: #444;
+            border-color: #00ff00;
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        button.primary {
+            background: #4CAF50;
+            border-color: #4CAF50;
+        }
+        
+        button.danger {
+            background: #f44336;
+            border-color: #f44336;
+        }
+        
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .messages {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background: #1a1a1a;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            animation: slideIn 0.3s;
+        }
+        
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message.sent {
+            background: #2a5a2a;
+            border-left: 3px solid #4CAF50;
+            margin-left: 20%;
+        }
+        
+        .message.received {
+            background: #2a2a4a;
+            border-left: 3px solid #2196F3;
+            margin-right: 20%;
+        }
+        
+        .message.system {
+            background: #333;
+            border-left: 3px solid #ff9800;
+            text-align: center;
+            font-style: italic;
+            color: #aaa;
+        }
+        
+        .message-header {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 5px;
+        }
+        
+        .message-content {
+            color: #fff;
+            word-wrap: break-word;
+        }
+        
+        .typing-indicator {
+            padding: 10px;
+            color: #888;
+            font-style: italic;
+            min-height: 30px;
+            background: #222;
+            border-top: 1px solid #333;
+        }
+        
+        .input-section {
+            padding: 15px;
+            background: #2a2a2a;
+            border-top: 1px solid #444;
+        }
+        
+        .message-input-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .message-input {
+            flex: 1;
+            padding: 10px;
+            background: #1a1a1a;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .message-input:focus {
+            outline: none;
+            border-color: #00ff00;
+        }
+        
+        .stats {
+            padding: 10px;
+            background: #1a1a1a;
+            font-size: 11px;
+            color: #666;
+            border-top: 1px solid #333;
+        }
+        
+        .stat-item {
+            display: inline-block;
+            margin-right: 15px;
+        }
+        
+        .log-panel {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: #000;
+            border-top: 2px solid #00ff00;
+            display: none;
+            flex-direction: column;
+        }
+        
+        .log-panel.active {
+            display: flex;
+        }
+        
+        .log-header {
+            padding: 5px 10px;
+            background: #111;
+            color: #00ff00;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .log-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #0f0;
+        }
+        
+        .log-entry {
+            margin-bottom: 2px;
+        }
+        
+        .log-entry.error { color: #f44336; }
+        .log-entry.warning { color: #ff9800; }
+        .log-entry.info { color: #2196F3; }
+        .log-entry.success { color: #4CAF50; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🏠 Rentified WebSocket Test Suite</h1>
+        <div class="conversation-info">
+            Conversation ID: <span id="conversationId">dd9fa72e-ede0-4928-9083-c9b932762d31</span>
+            | <button onclick="toggleLogs()">Toggle Logs</button>
+            | <button onclick="generateTokens()">Generate Fresh Tokens</button>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <!-- Renter Panel (Padraig) -->
+        <div class="user-panel renter" id="renterPanel">
+            <div class="user-header">
+                <div class="user-name">👤 Padraig Dooley</div>
+                <div class="user-email">padraigdooley@gmail.com (RENTER)</div>
+            </div>
+            
+            <div class="connection-status status-disconnected" id="renterStatus">
+                ⚡ DISCONNECTED
+            </div>
+            
+            <div class="token-section">
+                <input type="text" class="token-input" id="renterToken" 
+                    placeholder="Paste JWT token for Padraig here...">
+                <div class="button-group">
+                    <button class="primary" onclick="connectUser('renter')">Connect</button>
+                    <button class="danger" onclick="disconnectUser('renter')">Disconnect</button>
+                    <button onclick="joinConversation('renter')">Join Conv</button>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div class="messages" id="renterMessages"></div>
+                <div class="typing-indicator" id="renterTyping">&nbsp;</div>
+                <div class="input-section">
+                    <div class="message-input-group">
+                        <input type="text" class="message-input" id="renterInput" 
+                            placeholder="Type a message..." 
+                            onkeypress="handleKeyPress(event, 'renter')"
+                            oninput="handleTyping('renter')">
+                        <button onclick="sendMessage('renter')">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats" id="renterStats">
+                <span class="stat-item">Messages: <span id="renterMsgCount">0</span></span>
+                <span class="stat-item">Sent: <span id="renterSentCount">0</span></span>
+                <span class="stat-item">Received: <span id="renterRecvCount">0</span></span>
+            </div>
+        </div>
+        
+        <!-- Landlord Panel (Jim) -->
+        <div class="user-panel landlord" id="landlordPanel">
+            <div class="user-header">
+                <div class="user-name">🏢 Jim Fixit</div>
+                <div class="user-email">jim@fixit.ie (LANDLORD)</div>
+            </div>
+            
+            <div class="connection-status status-disconnected" id="landlordStatus">
+                ⚡ DISCONNECTED
+            </div>
+            
+            <div class="token-section">
+                <input type="text" class="token-input" id="landlordToken" 
+                    placeholder="Paste JWT token for Jim here...">
+                <div class="button-group">
+                    <button class="primary" onclick="connectUser('landlord')">Connect</button>
+                    <button class="danger" onclick="disconnectUser('landlord')">Disconnect</button>
+                    <button onclick="joinConversation('landlord')">Join Conv</button>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div class="messages" id="landlordMessages"></div>
+                <div class="typing-indicator" id="landlordTyping">&nbsp;</div>
+                <div class="input-section">
+                    <div class="message-input-group">
+                        <input type="text" class="message-input" id="landlordInput" 
+                            placeholder="Type a message..." 
+                            onkeypress="handleKeyPress(event, 'landlord')"
+                            oninput="handleTyping('landlord')">
+                        <button onclick="sendMessage('landlord')">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats" id="landlordStats">
+                <span class="stat-item">Messages: <span id="landlordMsgCount">0</span></span>
+                <span class="stat-item">Sent: <span id="landlordSentCount">0</span></span>
+                <span class="stat-item">Received: <span id="landlordRecvCount">0</span></span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Log Panel -->
+    <div class="log-panel" id="logPanel">
+        <div class="log-header">
+            <span>📊 WebSocket Activity Log</span>
+            <button onclick="clearLogs()">Clear</button>
+        </div>
+        <div class="log-content" id="logContent"></div>
+    </div>
+    
+    <script>
+        // WebSocket connections
+        const connections = {
+            renter: {
+                ws: null,
+                user: 'Padraig Dooley',
+                email: 'padraigdooley@gmail.com',
+                userId: 'df34ef12-eb4d-410a-a444-b9966bd35956',
+                stats: { messages: 0, sent: 0, received: 0 },
+                typingTimeout: null
+            },
+            landlord: {
+                ws: null,
+                user: 'Jim Fixit',
+                email: 'jim@fixit.ie',
+                userId: '44b68de6-2b7b-4006-a77f-a501dc6fe11f',
+                stats: { messages: 0, sent: 0, received: 0 },
+                typingTimeout: null
+            }
+        };
+        
+        const conversationId = 'dd9fa72e-ede0-4928-9083-c9b932762d31';
+        
+        function log(message, type = 'info') {
+            const logContent = document.getElementById('logContent');
+            const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            logContent.appendChild(entry);
+            logContent.scrollTop = logContent.scrollHeight;
+        }
+        
+        function updateStatus(userType, status) {
+            const statusEl = document.getElementById(`${userType}Status`);
+            statusEl.className = `connection-status status-${status}`;
+            statusEl.textContent = `⚡ ${status.toUpperCase()}`;
+        }
+        
+        function connectUser(userType) {
+            const token = document.getElementById(`${userType}Token`).value.trim();
+            
+            if (!token) {
+                log(`[${userType}] No token provided`, 'error');
+                alert('Please enter a JWT token first');
+                return;
+            }
+            
+            const conn = connections[userType];
+            
+            if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                log(`[${userType}] Already connected`, 'warning');
+                return;
+            }
+            
+            updateStatus(userType, 'connecting');
+            log(`[${userType}] Connecting to WebSocket...`, 'info');
+            
+            const wsUrl = `ws://localhost:8000/ws/messages/?token=${encodeURIComponent(token)}`;
+            conn.ws = new WebSocket(wsUrl);
+            
+            conn.ws.onopen = function() {
+                log(`[${userType}] WebSocket connected successfully`, 'success');
+                updateStatus(userType, 'connected');
+            };
+            
+            conn.ws.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    handleMessage(userType, data);
+                } catch (error) {
+                    log(`[${userType}] Error parsing message: ${error}`, 'error');
+                }
+            };
+            
+            conn.ws.onerror = function(error) {
+                log(`[${userType}] WebSocket error`, 'error');
+                updateStatus(userType, 'disconnected');
+            };
+            
+            conn.ws.onclose = function(event) {
+                log(`[${userType}] WebSocket closed (${event.code}: ${event.reason})`, 'warning');
+                updateStatus(userType, 'disconnected');
+                conn.ws = null;
+            };
+        }
+        
+        function disconnectUser(userType) {
+            const conn = connections[userType];
+            if (conn.ws) {
+                log(`[${userType}] Disconnecting...`, 'info');
+                conn.ws.close();
+                conn.ws = null;
+            }
+        }
+        
+        function joinConversation(userType) {
+            const conn = connections[userType];
+            if (!conn.ws || conn.ws.readyState !== WebSocket.OPEN) {
+                log(`[${userType}] Not connected`, 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'join_conversation',
+                conversation_id: conversationId
+            };
+            
+            conn.ws.send(JSON.stringify(message));
+            log(`[${userType}] Joining conversation ${conversationId}`, 'info');
+        }
+        
+        function sendMessage(userType) {
+            const conn = connections[userType];
+            const input = document.getElementById(`${userType}Input`);
+            const content = input.value.trim();
+            
+            if (!content) return;
+            
+            if (!conn.ws || conn.ws.readyState !== WebSocket.OPEN) {
+                log(`[${userType}] Not connected`, 'error');
+                return;
+            }
+            
+            const message = {
+                type: 'send_message',
+                conversation_id: conversationId,
+                content: content
+            };
+            
+            conn.ws.send(JSON.stringify(message));
+            log(`[${userType}] Sending message: "${content}"`, 'info');
+            
+            // Clear input
+            input.value = '';
+            
+            // Update stats
+            conn.stats.sent++;
+            updateStats(userType);
+        }
+        
+        function handleMessage(userType, data) {
+            log(`[${userType}] Received: ${data.type}`, 'info');
+            
+            const conn = connections[userType];
+            const messagesEl = document.getElementById(`${userType}Messages`);
+            
+            switch(data.type) {
+                case 'connection_established':
+                    addSystemMessage(userType, 'Connected to WebSocket server');
+                    break;
+                    
+                case 'joined_conversation':
+                    addSystemMessage(userType, `Joined conversation ${data.conversation_id}`);
+                    break;
+                    
+                case 'new_message':
+                    const msg = data.message;
+                    const isSent = msg.sender.id === conn.userId;
+                    addChatMessage(userType, msg, isSent);
+                    
+                    conn.stats.messages++;
+                    if (!isSent) conn.stats.received++;
+                    updateStats(userType);
+                    break;
+                    
+                case 'typing_indicator':
+                    if (data.user_id !== conn.userId) {
+                        showTypingIndicator(userType, data.is_typing);
+                    }
+                    break;
+                    
+                case 'error':
+                    addSystemMessage(userType, `Error: ${data.message}`);
+                    break;
+            }
+        }
+        
+        function addSystemMessage(userType, text) {
+            const messagesEl = document.getElementById(`${userType}Messages`);
+            const msgEl = document.createElement('div');
+            msgEl.className = 'message system';
+            msgEl.innerHTML = `<div class="message-content">${text}</div>`;
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function addChatMessage(userType, message, isSent) {
+            const messagesEl = document.getElementById(`${userType}Messages`);
+            const msgEl = document.createElement('div');
+            msgEl.className = `message ${isSent ? 'sent' : 'received'}`;
+            
+            const time = new Date(message.created_at).toLocaleTimeString();
+            msgEl.innerHTML = `
+                <div class="message-header">
+                    ${message.sender.full_name} • ${time}
+                </div>
+                <div class="message-content">${message.content}</div>
+            `;
+            
+            messagesEl.appendChild(msgEl);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        function handleTyping(userType) {
+            const conn = connections[userType];
+            
+            if (!conn.ws || conn.ws.readyState !== WebSocket.OPEN) return;
+            
+            // Clear existing timeout
+            if (conn.typingTimeout) {
+                clearTimeout(conn.typingTimeout);
+            }
+            
+            // Send typing indicator
+            const message = {
+                type: 'typing',
+                conversation_id: conversationId,
+                is_typing: true
+            };
+            conn.ws.send(JSON.stringify(message));
+            
+            // Stop typing after 2 seconds of inactivity
+            conn.typingTimeout = setTimeout(() => {
+                const stopMessage = {
+                    type: 'typing',
+                    conversation_id: conversationId,
+                    is_typing: false
+                };
+                if (conn.ws && conn.ws.readyState === WebSocket.OPEN) {
+                    conn.ws.send(JSON.stringify(stopMessage));
+                }
+            }, 2000);
+        }
+        
+        function showTypingIndicator(userType, isTyping) {
+            const typingEl = document.getElementById(`${userType}Typing`);
+            const otherUser = userType === 'renter' ? 'Jim' : 'Padraig';
+            
+            if (isTyping) {
+                typingEl.textContent = `${otherUser} is typing...`;
+            } else {
+                typingEl.innerHTML = '&nbsp;';
+            }
+        }
+        
+        function handleKeyPress(event, userType) {
+            if (event.key === 'Enter') {
+                sendMessage(userType);
+            }
+        }
+        
+        function updateStats(userType) {
+            const conn = connections[userType];
+            document.getElementById(`${userType}MsgCount`).textContent = conn.stats.messages;
+            document.getElementById(`${userType}SentCount`).textContent = conn.stats.sent;
+            document.getElementById(`${userType}RecvCount`).textContent = conn.stats.received;
+        }
+        
+        function toggleLogs() {
+            const logPanel = document.getElementById('logPanel');
+            logPanel.classList.toggle('active');
+        }
+        
+        function clearLogs() {
+            document.getElementById('logContent').innerHTML = '';
+            log('Log cleared', 'info');
+        }
+        
+        function generateTokens() {
+            log('To generate fresh tokens, run: python backend/generate_test_tokens.py', 'info');
+            alert('Run this command in terminal:\npython backend/generate_test_tokens.py');
+        }
+        
+        // Initial setup
+        log('WebSocket test suite ready', 'success');
+        log('Paste JWT tokens and click Connect for each user', 'info');
+    </script>
+</body>
+</html>

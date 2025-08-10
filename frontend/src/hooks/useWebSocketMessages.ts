@@ -25,27 +25,54 @@ export function useWebSocketMessages(conversationId: string | null) {
       
       if (data.type === 'new_message' && data.message) {
         const message = data.message as Message;
+        const tempId = data.temp_id;
         
         // Only add if it's for the current conversation
         if (message.conversation === conversationId) {
           console.log('[useWebSocketMessages] New message for current conversation');
           messagesRef.current.push(message);
           setNewMessages([...messagesRef.current]);
-          setMessages(prev => [...prev, message]);
+          
+          setMessages(prev => {
+            // If we have a temp_id, replace the optimistic message
+            if (tempId) {
+              const tempIndex = prev.findIndex(m => m.id === tempId || m.temp_id === tempId);
+              if (tempIndex !== -1) {
+                console.log('[useWebSocketMessages] Replacing optimistic message with server response');
+                const updated = [...prev];
+                updated[tempIndex] = message;
+                return updated;
+              }
+            }
+            
+            // Check if this exact message already exists (avoid duplicates)
+            const exists = prev.some(m => m.id === message.id);
+            if (exists) {
+              console.log('[useWebSocketMessages] Message already exists, skipping duplicate');
+              return prev;
+            }
+            
+            // Add new message
+            return [...prev, message];
+          });
         }
       } else if (data.type === 'message_sent' && data.message) {
-        // Handle confirmation of sent message
+        // Handle confirmation of sent message (if server sends this separately)
         const message = data.message as Message;
-        if (message.conversation === conversationId) {
+        const tempId = data.temp_id;
+        
+        if (message.conversation === conversationId && tempId) {
           setMessages(prev => {
             // Update the temporary message with the server response
-            const tempIndex = prev.findIndex(m => m.id === message.temp_id);
+            const tempIndex = prev.findIndex(m => m.id === tempId || m.temp_id === tempId);
             if (tempIndex !== -1) {
+              console.log('[useWebSocketMessages] Updating temp message with server confirmation');
               const updated = [...prev];
               updated[tempIndex] = message;
               return updated;
             }
-            return [...prev, message];
+            // Don't add if not found - it might have been replaced already
+            return prev;
           });
         }
       } else if (data.type === 'joined_conversation') {
@@ -86,10 +113,11 @@ export function useWebSocketMessages(conversationId: string | null) {
       return null;
     }
 
-    // Create optimistic message
+    // Create optimistic message with unique temp ID
+    const tempId = `temp-${Date.now()}-${Math.random()}`;
     const tempMessage: Message = {
-      id: `temp-${Date.now()}`,
-      temp_id: `temp-${Date.now()}`,
+      id: tempId,
+      temp_id: tempId,
       conversation: conversationId,
       content,
       sender: 'current-user', // This should come from auth context
@@ -101,8 +129,13 @@ export function useWebSocketMessages(conversationId: string | null) {
     // Add to local state immediately (optimistic update)
     setMessages(prev => [...prev, tempMessage]);
 
-    // Send via WebSocket
-    webSocketService.sendMessage(conversationId, content);
+    // Send via WebSocket with temp_id for tracking
+    webSocketService.send({
+      type: 'send_message',
+      conversation_id: conversationId,
+      content,
+      temp_id: tempId
+    });
 
     return tempMessage;
   }, [conversationId, isConnected]);

@@ -109,6 +109,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [notifications, isAuthenticated, user])
 
   // Set up real-time notifications (WebSocket or polling)
+  // DISABLED: Commenting out automatic notification polling
+  /*
   useEffect(() => {
     if (!isAuthenticated || !user) return
 
@@ -137,6 +139,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     return () => clearInterval(pollInterval)
   }, [isAuthenticated, user, addNotification])
+  */
 
   const value = {
     notifications,
@@ -402,28 +405,7 @@ export function ToastNotification({
 
 // Toast Container Component
 export function ToastContainer() {
-  const [toasts, setToasts] = useState<Notification[]>([])
-  const { notifications } = useNotifications()
-
-  // Show new notifications as toasts
-  useEffect(() => {
-    const newNotifications = notifications.filter(n => !n.read).slice(0, 3) // Show max 3 toasts
-    setToasts(newNotifications)
-  }, [notifications])
-
-  const removeToast = (id: string) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id))
-  }
-
-  return (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
-      {toasts.map((toast) => (
-        <ToastNotification
-          key={toast.id}
-          notification={toast}
-          onClose={() => removeToast(toast.id)}
-        />
-      ))}
-    </div>
-  )
+  // DISABLED: Toast notifications are disabled
+  // Return null to completely remove from DOM
+  return null
 }
