@@ -278,3 +278,28 @@ CHANNEL_LAYERS = {
 #         },
 #     },
 # }
+
+# Email Configuration
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+DEFAULT_FROM_EMAIL = 'support@rentified.ie'
+EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'apikey'  # This is always 'apikey' for SendGrid
+EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')  # Set in environment
+
+# SendGrid API Key (for using their SDK directly)
+SENDGRID_API_KEY = config('SENDGRID_API_KEY', default='')
+
+# Twilio Configuration (for SMS verification)
+TWILIO_ACCOUNT_SID = config('TWILIO_ACCOUNT_SID', default='')
+TWILIO_AUTH_TOKEN = config('TWILIO_AUTH_TOKEN', default='')
+TWILIO_PHONE_NUMBER = config('TWILIO_PHONE_NUMBER', default='')
+
+# Stripe Configuration (for identity verification)
+STRIPE_PUBLIC_KEY = config('STRIPE_PUBLIC_KEY', default='')
+STRIPE_SECRET_KEY = config('STRIPE_SECRET_KEY', default='')
+STRIPE_WEBHOOK_SECRET = config('STRIPE_WEBHOOK_SECRET', default='')
+
+# Frontend URL for verification links
+FRONTEND_URL = config('FRONTEND_URL', default='http://localhost:3000')

@@ -72,6 +72,7 @@ export interface AuthContextType extends AuthState {
   logout: () => void;
   refreshToken: () => Promise<void>;
   clearError: () => void;
+  refreshUser: () => Promise<void>;
 }
 
 export interface LoginResponse {

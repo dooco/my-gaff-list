@@ -8,6 +8,17 @@ from .views import (
     dashboard_stats, track_activity, check_property_saved, create_property_enquiry
 )
 
+from .verification_views import (
+    send_email_verification,
+    verify_email,
+    send_phone_verification,
+    verify_phone,
+    initiate_identity_verification,
+    verification_status,
+    webhook_stripe_identity,
+    webhook_twilio_verify
+)
+
 # Create router for viewsets
 router = DefaultRouter()
 router.register(r'saved-properties', SavedPropertiesViewSet, basename='saved-properties')
@@ -38,6 +49,18 @@ urlpatterns = [
     # Property interactions
     path('properties/<uuid:property_id>/saved/', check_property_saved, name='check-property-saved'),
     path('properties/enquiry/', create_property_enquiry, name='create-property-enquiry'),
+    
+    # Verification endpoints
+    path('verification/email/send/', send_email_verification, name='send-email-verification'),
+    path('verification/email/verify/', verify_email, name='verify-email'),
+    path('verification/phone/send/', send_phone_verification, name='send-phone-verification'),
+    path('verification/phone/verify/', verify_phone, name='verify-phone'),
+    path('verification/identity/initiate/', initiate_identity_verification, name='initiate-identity-verification'),
+    path('verification/status/', verification_status, name='verification-status'),
+    
+    # Webhook endpoints
+    path('webhooks/stripe-identity/', webhook_stripe_identity, name='webhook-stripe-identity'),
+    path('webhooks/twilio-verify/', webhook_twilio_verify, name='webhook-twilio-verify'),
     
     # Include router URLs
     path('', include(router.urls)),

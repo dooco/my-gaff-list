@@ -19,8 +19,8 @@ export function useAuthUser() {
 }
 
 export function useAuthActions() {
-  const { login, register, logout, clearError } = useAuth();
-  return { login, register, logout, clearError };
+  const { login, register, logout, clearError, refreshUser } = useAuth();
+  return { login, register, logout, clearError, refreshUser };
 }
 
 export function useAuthState() {

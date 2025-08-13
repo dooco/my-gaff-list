@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, MapPin, Home, DollarSign, Calendar, ImageIcon, Plus, X } from 'lucide-react'
 import { LandlordOrAgentRoute } from '@/components/auth/ProtectedRoute'
-import api from '@/lib/api'
+import { api } from '@/lib/api'
 
 interface PropertyForm {
   title: string
@@ -113,7 +113,7 @@ export default function AddPropertyPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [counties, setCounties] = useState<Array<{id: string, name: string, slug: string}>>([])
-  const [towns, setTowns] = useState<Array<{id: string, name: string, slug: string}>>([]))
+  const [towns, setTowns] = useState<Array<{id: string, name: string, slug: string}>>([])
   
   const [formData, setFormData] = useState<PropertyForm>({
     title: '',

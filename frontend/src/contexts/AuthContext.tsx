@@ -247,6 +247,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     dispatch({ type: 'CLEAR_ERROR' });
   };
 
+  const refreshUser = async (): Promise<void> => {
+    try {
+      const user = await authService.getCurrentUser();
+      dispatch({ type: 'SET_USER', payload: user });
+    } catch (error) {
+      console.error('Failed to refresh user data:', error);
+    }
+  };
+
   // Context value
   const contextValue: AuthContextType = {
     ...state,
@@ -255,6 +264,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     logout,
     refreshToken,
     clearError,
+    refreshUser,
   };
 
   return (

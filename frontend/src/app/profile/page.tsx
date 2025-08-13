@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { authService } from '@/services/authService';
+import VerificationStatus from '@/components/verification/VerificationStatus';
 import { 
   UserIcon,
   EnvelopeIcon,
@@ -15,7 +16,8 @@ import {
   KeyIcon,
   BellIcon,
   EyeIcon,
-  PencilIcon
+  PencilIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { CheckCircleIcon as CheckCircleIconSolid } from '@heroicons/react/24/solid';
 
@@ -56,7 +58,7 @@ interface NotificationSettings {
 export default function Profile() {
   const { user, isLoading } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications' | 'privacy'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'notifications' | 'privacy' | 'verification'>('profile');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saveLoading, setSaveLoading] = useState(false);
@@ -311,6 +313,7 @@ export default function Profile() {
                   {[
                     { key: 'profile', label: 'Profile Information', icon: UserIcon },
                     { key: 'account', label: 'Account Security', icon: KeyIcon },
+                    { key: 'verification', label: 'Verification', icon: ShieldCheckIcon },
                     { key: 'notifications', label: 'Notifications', icon: BellIcon },
                     { key: 'privacy', label: 'Privacy Settings', icon: EyeIcon }
                   ].map(tab => (
@@ -630,6 +633,10 @@ export default function Profile() {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {activeTab === 'verification' && (
+                <VerificationStatus />
               )}
 
               {activeTab === 'privacy' && (

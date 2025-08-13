@@ -147,6 +147,118 @@ class SavedProperty(models.Model):
         return f"{self.user.email} saved {self.property.title}"
 
 
+class EmailVerificationToken(models.Model):
+    """Email verification tokens for user authentication"""
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_tokens')
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['user', 'is_used']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"Email verification token for {self.user.email}"
+    
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired
+
+
+class PhoneVerificationCode(models.Model):
+    """SMS verification codes for phone number verification"""
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='phone_codes')
+    phone_number = models.CharField(max_length=15)
+    code = models.CharField(max_length=6)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    attempts = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_used']),
+            models.Index(fields=['code']),
+            models.Index(fields=['expires_at']),
+        ]
+    
+    def __str__(self):
+        return f"Phone verification code for {self.user.email}"
+    
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired and self.attempts < 3
+
+
+class IdentityVerification(models.Model):
+    """Identity verification records for enhanced user authentication"""
+    
+    VERIFICATION_STATUS = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('verified', 'Verified'),
+        ('failed', 'Failed'),
+        ('expired', 'Expired'),
+    ]
+    
+    VERIFICATION_TYPES = [
+        ('document', 'Document Verification'),
+        ('selfie', 'Selfie Verification'),
+        ('address', 'Address Verification'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='identity_verifications')
+    verification_type = models.CharField(max_length=20, choices=VERIFICATION_TYPES)
+    status = models.CharField(max_length=20, choices=VERIFICATION_STATUS, default='pending')
+    
+    # Verification provider details
+    provider = models.CharField(max_length=50, default='stripe')  # stripe, jumio, onfido
+    provider_session_id = models.CharField(max_length=255, blank=True)
+    provider_verification_id = models.CharField(max_length=255, blank=True)
+    
+    # Verification results
+    verification_data = models.JSONField(default=dict, blank=True)
+    failure_reason = models.TextField(blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status']),
+            models.Index(fields=['verification_type', 'status']),
+            models.Index(fields=['provider_session_id']),
+        ]
+    
+    def __str__(self):
+        return f"{self.verification_type} verification for {self.user.email} - {self.status}"
+
+
 class PropertyEnquiry(models.Model):
     """Track property enquiries from users"""
     
