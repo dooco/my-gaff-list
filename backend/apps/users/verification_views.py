@@ -111,9 +111,8 @@ def send_phone_verification(request):
             'message': 'Verification code recently sent. Please wait before requesting a new code.'
         }, status=status.HTTP_429_TOO_MANY_REQUESTS)
     
-    # Create and send verification code
-    code = SMSService.create_verification_code(user, phone_number)
-    sms_sent = SMSService.send_verification_sms(phone_number, code)
+    # Send verification code using Twilio Verify API
+    sms_sent = SMSService.send_verification_sms(phone_number, user)
     
     if sms_sent:
         return Response({
@@ -139,7 +138,19 @@ def verify_phone(request):
             'error': 'Verification code is required'
         }, status=status.HTTP_400_BAD_REQUEST)
     
-    success, message = SMSService.verify_phone_code(user, code)
+    # Get the most recent phone number verification attempt for this user
+    recent_verification = PhoneVerificationCode.objects.filter(
+        user=user,
+        is_used=False
+    ).order_by('-created_at').first()
+    
+    if not recent_verification:
+        return Response({
+            'error': 'No pending verification. Please request a new code.'
+        }, status=status.HTTP_400_BAD_REQUEST)
+    
+    phone_number = recent_verification.phone_number
+    success, message = SMSService.verify_phone_code(user, code, phone_number)
     
     if success:
         user_serializer = UserSerializer(user)

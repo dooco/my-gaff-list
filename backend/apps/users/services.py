@@ -158,92 +158,102 @@ class EmailService:
 
 
 class SMSService:
-    """Service for handling SMS/phone verification"""
+    """Service for handling SMS/phone verification using Twilio Verify API"""
     
     @staticmethod
-    def generate_verification_code():
-        """Generate a 6-digit verification code"""
-        return ''.join(random.choices(string.digits, k=6))
-    
-    @staticmethod
-    def create_verification_code(user, phone_number):
-        """Create a new phone verification code"""
-        # Invalidate existing unused codes
-        PhoneVerificationCode.objects.filter(
-            user=user,
-            is_used=False
-        ).update(is_used=True)
-        
-        # Create new code
-        code = PhoneVerificationCode.objects.create(
-            user=user,
-            phone_number=phone_number,
-            code=SMSService.generate_verification_code(),
-            expires_at=timezone.now() + timedelta(minutes=10)
-        )
-        
-        return code
-    
-    @staticmethod
-    def send_verification_sms(phone_number, code):
-        """Send SMS verification code using Twilio"""
+    def send_verification_sms(phone_number, user=None):
+        """Send SMS verification code using Twilio Verify API"""
         if not hasattr(settings, 'TWILIO_ACCOUNT_SID') or not settings.TWILIO_ACCOUNT_SID:
-            print(f"[DEV] SMS verification code for {phone_number}: {code.code}")
+            print(f"[DEV] SMS verification would be sent to {phone_number}")
             return True
         
         try:
             client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
             
-            message = client.messages.create(
-                body=f"Your MyGaffList verification code is: {code.code}. This code expires in 10 minutes.",
-                from_=settings.TWILIO_PHONE_NUMBER,
-                to=phone_number
-            )
+            # Use Twilio Verify API to send verification
+            verification = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                .verifications \
+                .create(
+                    to=phone_number,
+                    channel='sms'
+                )
             
-            return message.sid is not None
+            # Store phone verification attempt in database for tracking
+            if user:
+                # Invalidate any existing codes for this user
+                PhoneVerificationCode.objects.filter(
+                    user=user,
+                    is_used=False
+                ).update(is_used=True)
+                
+                # Create a record for tracking (but Twilio handles the actual code)
+                PhoneVerificationCode.objects.create(
+                    user=user,
+                    phone_number=phone_number,
+                    code='TWILIO',  # Placeholder since Twilio manages the code
+                    expires_at=timezone.now() + timedelta(minutes=10)
+                )
+            
+            return verification.status == 'pending'
         except Exception as e:
-            print(f"Twilio error: {e}")
+            print(f"Twilio Verify error: {e}")
             return False
     
     @staticmethod
-    def verify_phone_code(user, code_string):
-        """Verify a phone verification code"""
+    def verify_phone_code(user, code_string, phone_number):
+        """Verify a phone verification code using Twilio Verify API"""
+        if not hasattr(settings, 'TWILIO_ACCOUNT_SID') or not settings.TWILIO_ACCOUNT_SID:
+            print(f"[DEV] Would verify code {code_string} for {phone_number}")
+            # In dev mode, accept any 6-digit code
+            if len(code_string) == 6 and code_string.isdigit():
+                user.is_phone_verified = True
+                user.phone_number = phone_number
+                user.save()
+                return True, "Phone number verified successfully (dev mode)"
+            return False, "Invalid code (dev mode)"
+        
         try:
-            code = PhoneVerificationCode.objects.filter(
-                user=user,
-                code=code_string,
-                is_used=False
-            ).order_by('-created_at').first()
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
             
-            if not code:
-                return False, "Invalid code"
+            # Use Twilio Verify API to check the code
+            verification_check = client.verify.v2.services(settings.TWILIO_VERIFY_SERVICE_SID) \
+                .verification_checks \
+                .create(
+                    to=phone_number,
+                    code=code_string
+                )
             
-            # Increment attempts
-            code.attempts += 1
-            code.save()
-            
-            if code.attempts >= 3:
-                code.is_used = True
-                code.save()
-                return False, "Too many attempts. Please request a new code."
-            
-            if code.is_expired:
-                return False, "Code has expired"
-            
-            # Mark code as used
-            code.is_used = True
-            code.used_at = timezone.now()
-            code.save()
-            
-            # Mark user's phone as verified
-            user.is_phone_verified = True
-            user.phone_number = code.phone_number
-            user.save()
-            
-            return True, "Phone number verified successfully"
+            if verification_check.status == 'approved':
+                # Mark the database record as used
+                code_record = PhoneVerificationCode.objects.filter(
+                    user=user,
+                    phone_number=phone_number,
+                    is_used=False
+                ).order_by('-created_at').first()
+                
+                if code_record:
+                    code_record.is_used = True
+                    code_record.used_at = timezone.now()
+                    code_record.save()
+                
+                # Mark user's phone as verified
+                user.is_phone_verified = True
+                user.phone_number = phone_number
+                user.save()
+                
+                return True, "Phone number verified successfully"
+            else:
+                return False, f"Verification failed: {verification_check.status}"
             
         except Exception as e:
-            return False, str(e)
+            error_msg = str(e)
+            if 'max check attempts reached' in error_msg.lower():
+                return False, "Too many attempts. Please request a new code."
+            elif 'expired' in error_msg.lower():
+                return False, "Code has expired. Please request a new code."
+            else:
+                print(f"Twilio Verify error: {e}")
+                return False, "Invalid verification code"
 
 
 class IdentityVerificationService:
