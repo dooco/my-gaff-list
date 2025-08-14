@@ -101,14 +101,23 @@ def send_phone_verification(request):
         }, status=status.HTTP_400_BAD_REQUEST)
     
     # Check for recent codes (rate limiting)
+    # Only check for unused codes sent to the same phone number
     recent_code = PhoneVerificationCode.objects.filter(
         user=user,
+        phone_number=phone_number,
+        is_used=False,
         created_at__gte=timezone.now() - timezone.timedelta(minutes=2)
     ).first()
     
-    if recent_code and not recent_code.is_used:
+    if recent_code:
+        # Calculate time to wait
+        time_since = timezone.now() - recent_code.created_at
+        time_to_wait = timezone.timedelta(minutes=2) - time_since
+        seconds_to_wait = max(0, int(time_to_wait.total_seconds()))
+        
         return Response({
-            'message': 'Verification code recently sent. Please wait before requesting a new code.'
+            'message': f'Verification code recently sent. Please wait {seconds_to_wait} seconds before requesting a new code.',
+            'seconds_to_wait': seconds_to_wait
         }, status=status.HTTP_429_TOO_MANY_REQUESTS)
     
     # Send verification code using Twilio Verify API
