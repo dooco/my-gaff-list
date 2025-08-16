@@ -186,7 +186,7 @@ class Property(models.Model):
     # Location
     county = models.ForeignKey(County, on_delete=models.CASCADE)
     town = models.ForeignKey(Town, on_delete=models.CASCADE)
-    address = models.CharField(max_length=300)  # Temporarily keep for migration
+    address = models.CharField(max_length=300, blank=True, default='')  # Temporarily keep for migration, now optional
     
     # New structured address fields
     address_line_1 = models.CharField(max_length=200, blank=True, help_text="House/building number and street")

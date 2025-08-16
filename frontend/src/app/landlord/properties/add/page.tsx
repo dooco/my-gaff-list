@@ -317,9 +317,12 @@ export default function AddPropertyPage() {
     } catch (error: any) {
       console.error('Failed to create property:', error)
       console.error('Server response:', error.response?.data)
+      console.error('Status:', error.response?.status)
+      
       if (error.response?.data) {
         const serverErrors: Record<string, string> = {}
         Object.entries(error.response.data).forEach(([key, value]: [string, any]) => {
+          console.error(`Validation error for ${key}:`, value)
           if (Array.isArray(value)) {
             serverErrors[key] = value[0]
           } else {
@@ -327,6 +330,12 @@ export default function AddPropertyPage() {
           }
         })
         setErrors(serverErrors)
+        
+        // Show first error at the top of the form
+        const firstError = Object.entries(serverErrors)[0]
+        if (firstError) {
+          alert(`Validation Error: ${firstError[0]} - ${firstError[1]}`)
+        }
       }
     } finally {
       setLoading(false)
