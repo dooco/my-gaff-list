@@ -149,6 +149,16 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Invalid town ID")
         return value
     
+    def validate_eircode(self, value):
+        """Validate Eircode format"""
+        from apps.core.models import validate_eircode
+        if value:
+            try:
+                validate_eircode(value)
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+        return value.upper() if value else value
+    
     def create(self, validated_data):
         county_id = validated_data.pop('county_id')
         town_id = validated_data.pop('town_id')
@@ -156,6 +166,13 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
         # Extract images from request.FILES if present
         request = self.context.get('request')
         images = request.FILES.getlist('images') if request else []
+        
+        # If address is empty but we have address_line_1, populate it
+        if not validated_data.get('address') and validated_data.get('address_line_1'):
+            parts = [validated_data.get('address_line_1')]
+            if validated_data.get('address_line_2'):
+                parts.append(validated_data.get('address_line_2'))
+            validated_data['address'] = ' '.join(parts)
         
         property_instance = Property.objects.create(
             county_id=county_id,

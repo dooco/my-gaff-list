@@ -294,10 +294,19 @@ export default function AddPropertyPage() {
           if (town) {
             submitData.append('town_id', town.id)
           }
+        } else if (key === 'address') {
+          // Skip the old address field - it will be populated from address_line_1 and address_line_2 on backend
+          return
         } else {
           submitData.append(key, String(value))
         }
       })
+
+      // Debug: Log what we're sending
+      console.log('Submitting form data:')
+      for (let [key, value] of submitData.entries()) {
+        console.log(`${key}: ${value}`)
+      }
 
       // Don't set Content-Type header when sending FormData
       // axios will set the correct multipart/form-data with boundary
@@ -307,6 +316,7 @@ export default function AddPropertyPage() {
       router.push(`/property/${response.data.id}`)
     } catch (error: any) {
       console.error('Failed to create property:', error)
+      console.error('Server response:', error.response?.data)
       if (error.response?.data) {
         const serverErrors: Record<string, string> = {}
         Object.entries(error.response.data).forEach(([key, value]: [string, any]) => {
