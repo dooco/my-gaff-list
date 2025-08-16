@@ -58,7 +58,11 @@ export interface PropertyDetail extends Property {
   images: string[];
   main_image_url?: string;
   lease_duration?: string;
-  address: string;
+  address: string; // Keep for backward compatibility
+  address_line_1: string;
+  address_line_2?: string;
+  eircode: string;
+  full_address?: string;
   updated_at: string;
   county_name: string;
   town_name: string;

@@ -127,7 +127,8 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
         fields = [
-            'id', 'title', 'description', 'county_id', 'town_id', 'address',
+            'id', 'title', 'description', 'county_id', 'town_id', 
+            'address', 'address_line_1', 'address_line_2', 'eircode',
             'property_type', 'house_type', 'bedrooms', 'bathrooms', 'floor_area',
             'rent_monthly', 'deposit', 'furnished', 'lease_duration',
             'ber_rating', 'ber_number', 'features', 'available_from', 'contact_method'
@@ -182,6 +183,7 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
     county_name = serializers.CharField(source='county.name', read_only=True)
     town_name = serializers.CharField(source='town.name', read_only=True)
     location_display = serializers.ReadOnlyField()
+    full_address = serializers.ReadOnlyField()
     main_image_url = serializers.SerializerMethodField()
     images = serializers.SerializerMethodField()
     
@@ -240,7 +242,8 @@ class PropertyUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Property
         fields = [
-            'id', 'title', 'description', 'county_id', 'town_id', 'address',
+            'id', 'title', 'description', 'county_id', 'town_id', 
+            'address', 'address_line_1', 'address_line_2', 'eircode',
             'property_type', 'house_type', 'bedrooms', 'bathrooms', 'floor_area',
             'rent_monthly', 'deposit', 'furnished', 'lease_duration',
             'ber_rating', 'ber_number', 'features', 'available_from', 'contact_method',

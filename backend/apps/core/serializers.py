@@ -117,6 +117,7 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
             'furnished', 'lease_duration', 'ber_rating', 'ber_number', 'ber_color_class',
             'features', 'main_image_url', 'images', 'available_from', 'contact_method',
             'county_name', 'town_name', 'location_display', 'address',
+            'address_line_1', 'address_line_2', 'eircode', 'full_address',
             'created_at', 'updated_at', 'view_count', 'enquiry_count', 'landlord', 'owner'
         ]
     
@@ -164,8 +165,19 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
             'bedrooms', 'bathrooms', 'floor_area', 'rent_monthly', 'deposit',
             'furnished', 'lease_duration', 'ber_rating', 'ber_number',
             'features', 'available_from', 'contact_method',
-            'county', 'town', 'address', 'images', 'new_images', 'deleted_image_ids'
+            'county', 'town', 'address', 'address_line_1', 'address_line_2', 'eircode',
+            'images', 'new_images', 'deleted_image_ids'
         ]
+    
+    def validate_eircode(self, value):
+        """Validate Eircode format"""
+        from .models import validate_eircode
+        if value:
+            try:
+                validate_eircode(value)
+            except Exception as e:
+                raise serializers.ValidationError(str(e))
+        return value.upper() if value else value
     
     def validate_features(self, value):
         """Validate features field if it's a JSON string"""

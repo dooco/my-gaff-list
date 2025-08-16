@@ -23,7 +23,10 @@ interface PropertyForm {
   furnished: string
   county: string
   town: string
-  address: string
+  address: string // Keep for backward compatibility
+  address_line_1: string
+  address_line_2: string
+  eircode: string
   available_from: string
   lease_duration: string
   deposit: string
@@ -138,7 +141,10 @@ export default function EditPropertyPage() {
     furnished: '',
     county: '',
     town: '',
-    address: '',
+    address: '', // Keep for backward compatibility
+    address_line_1: '',
+    address_line_2: '',
+    eircode: '',
     available_from: '',
     lease_duration: '12',
     deposit: '',
@@ -180,7 +186,10 @@ export default function EditPropertyPage() {
           furnished: property.furnished || '',
           county: property.county?.slug || '',
           town: property.town?.slug || '',
-          address: property.address || '',
+          address: property.address || '', // Keep for backward compatibility
+          address_line_1: property.address_line_1 || '',
+          address_line_2: property.address_line_2 || '',
+          eircode: property.eircode || '',
           available_from: availableDate,
           lease_duration: property.lease_duration || '12',
           deposit: property.deposit || '',
@@ -304,7 +313,15 @@ export default function EditPropertyPage() {
     if (!formData.rent_monthly) newErrors.rent_monthly = 'Monthly rent is required'
     if (!formData.county) newErrors.county = 'County is required'
     if (!formData.town) newErrors.town = 'Town is required'
-    if (!formData.address.trim()) newErrors.address = 'Address is required'
+    if (!formData.address_line_1.trim()) newErrors.address_line_1 = 'Address Line 1 is required'
+    if (!formData.eircode.trim()) newErrors.eircode = 'Eircode is required'
+    
+    // Validate Eircode format
+    const eircodePattern = /^[A-Z]\d{2}\s?[A-Z0-9]{4}$/i
+    if (formData.eircode && !eircodePattern.test(formData.eircode.trim())) {
+      newErrors.eircode = 'Invalid Eircode format (e.g., D02 X285)'
+    }
+    
     if (!formData.available_from) newErrors.available_from = 'Available from date is required'
 
     // Validate rent amount
@@ -631,20 +648,55 @@ export default function EditPropertyPage() {
                   {errors.town && <p className="text-red-500 text-sm mt-1">{errors.town}</p>}
                 </div>
 
+                {/* Address Line 1 */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Address *
+                    Address Line 1 *
                   </label>
                   <input
                     type="text"
-                    value={formData.address}
-                    onChange={(e) => handleInputChange('address', e.target.value)}
+                    value={formData.address_line_1}
+                    onChange={(e) => handleInputChange('address_line_1', e.target.value)}
                     className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
-                      errors.address ? 'border-red-500' : 'border-gray-300'
+                      errors.address_line_1 ? 'border-red-500' : 'border-gray-300'
                     }`}
-                    placeholder="Full address (will be shown approximately for privacy)"
+                    placeholder="e.g., 123 Main Street"
                   />
-                  {errors.address && <p className="text-red-500 text-sm mt-1">{errors.address}</p>}
+                  {errors.address_line_1 && <p className="text-red-500 text-sm mt-1">{errors.address_line_1}</p>}
+                </div>
+                
+                {/* Address Line 2 */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Address Line 2 (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address_line_2}
+                    onChange={(e) => handleInputChange('address_line_2', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    placeholder="e.g., Area, townland, or district"
+                  />
+                </div>
+                
+                {/* Eircode */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Eircode *
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.eircode}
+                    onChange={(e) => handleInputChange('eircode', e.target.value.toUpperCase())}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-green-500 focus:border-green-500 ${
+                      errors.eircode ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                    placeholder="e.g., D02 X285"
+                    maxLength={8}
+                    style={{ textTransform: 'uppercase' }}
+                  />
+                  {errors.eircode && <p className="text-red-500 text-sm mt-1">{errors.eircode}</p>}
+                  <p className="text-xs text-gray-500 mt-1">Format: Letter + 2 digits + space + 4 characters</p>
                 </div>
               </div>
             </div>

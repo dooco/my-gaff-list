@@ -1,10 +1,29 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 import uuid
 import os
+import re
 
 User = get_user_model()
+
+
+def validate_eircode(value):
+    """Validate Irish Eircode format"""
+    if not value:
+        return  # Allow blank for now during migration
+    
+    # Remove spaces and convert to uppercase for validation
+    clean_value = value.upper().replace(' ', '')
+    
+    # Irish Eircode pattern: Letter + 2 digits + 4 alphanumeric
+    pattern = r'^[A-Z]\d{2}[A-Z0-9]{4}$'
+    
+    if not re.match(pattern, clean_value):
+        raise ValidationError(
+            'Invalid Eircode format. Must be in format like D02 X285 or D02X285'
+        )
 
 
 class County(models.Model):
@@ -167,7 +186,17 @@ class Property(models.Model):
     # Location
     county = models.ForeignKey(County, on_delete=models.CASCADE)
     town = models.ForeignKey(Town, on_delete=models.CASCADE)
-    address = models.CharField(max_length=300)
+    address = models.CharField(max_length=300)  # Temporarily keep for migration
+    
+    # New structured address fields
+    address_line_1 = models.CharField(max_length=200, blank=True, help_text="House/building number and street")
+    address_line_2 = models.CharField(max_length=200, blank=True, help_text="Area, townland, or district")
+    eircode = models.CharField(
+        max_length=8, 
+        blank=True, 
+        validators=[validate_eircode],
+        help_text="Irish postcode (e.g., D02 X285)"
+    )
     
     # Property Details
     property_type = models.CharField(max_length=20, choices=PROPERTY_TYPES)
@@ -224,6 +253,28 @@ class Property(models.Model):
     def location_display(self):
         """Display location as 'Town, County'"""
         return f"{self.town.name}, {self.county.name}"
+    
+    @property
+    def full_address(self):
+        """Combine address fields for complete display"""
+        parts = []
+        if self.address_line_1:
+            parts.append(self.address_line_1)
+        if self.address_line_2:
+            parts.append(self.address_line_2)
+        if self.town:
+            parts.append(self.town.name)
+        if self.county:
+            parts.append(f"Co. {self.county.name}")
+        if self.eircode:
+            # Format Eircode with space if not already formatted
+            eircode_clean = self.eircode.upper().replace(' ', '')
+            if len(eircode_clean) == 7:
+                formatted_eircode = f"{eircode_clean[:3]} {eircode_clean[3:]}"
+            else:
+                formatted_eircode = self.eircode
+            parts.append(formatted_eircode)
+        return ", ".join(parts)
     
     @property
     def ber_color_class(self):

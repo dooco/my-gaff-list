@@ -134,10 +134,21 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
                 <span className="text-gray-600">Town/City</span>
                 <span className="font-medium">{property.town_name}</span>
               </div>
-              {property.address && (
+              {property.full_address ? (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Address</span>
+                  <span className="font-medium">{property.full_address}</span>
+                </div>
+              ) : property.address ? (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Address</span>
                   <span className="font-medium">{property.address}</span>
+                </div>
+              ) : null}
+              {property.eircode && (
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Eircode</span>
+                  <span className="font-medium">{property.eircode}</span>
                 </div>
               )}
             </div>
@@ -171,7 +182,7 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
           <PropertyLocationMap
             latitude={property.latitude}
             longitude={property.longitude}
-            address={property.address || property.location_display}
+            address={property.full_address || property.address || property.location_display}
             title={property.title}
           />
         </section>
