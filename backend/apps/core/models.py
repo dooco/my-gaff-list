@@ -198,6 +198,22 @@ class Property(models.Model):
         help_text="Irish postcode (e.g., D02 X285)"
     )
     
+    # Geocoding fields
+    latitude = models.DecimalField(
+        max_digits=10, 
+        decimal_places=7, 
+        null=True, 
+        blank=True,
+        help_text="Latitude coordinate for map display"
+    )
+    longitude = models.DecimalField(
+        max_digits=10, 
+        decimal_places=7, 
+        null=True, 
+        blank=True,
+        help_text="Longitude coordinate for map display"
+    )
+    
     # Property Details
     property_type = models.CharField(max_length=20, choices=PROPERTY_TYPES)
     house_type = models.CharField(max_length=20, choices=HOUSE_TYPES, blank=True)
@@ -294,6 +310,35 @@ class Property(models.Model):
         elif self.ber_rating == 'G':
             return 'ber-g'  # Maroon
         return 'ber-exempt'  # Grey for exempt
+    
+    def save(self, *args, **kwargs):
+        """Override save to geocode eircode when it changes"""
+        # Check if eircode has changed
+        geocode_needed = False
+        
+        if self.pk:  # Existing property
+            try:
+                old_property = Property.objects.get(pk=self.pk)
+                if old_property.eircode != self.eircode:
+                    geocode_needed = True
+            except Property.DoesNotExist:
+                geocode_needed = True if self.eircode else False
+        else:  # New property
+            geocode_needed = True if self.eircode else False
+        
+        # Save first
+        super().save(*args, **kwargs)
+        
+        # Then geocode if needed (after save so we have an ID)
+        if geocode_needed and self.eircode and not self.eircode.endswith('0000'):
+            from apps.core.services.geocoding import geocode_property
+            try:
+                geocode_property(self)
+            except Exception as e:
+                # Log error but don't fail the save
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to geocode property {self.id}: {e}")
     
     def soft_delete(self):
         """Soft delete the property by setting deleted_at timestamp"""

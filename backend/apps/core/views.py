@@ -12,6 +12,7 @@ from .serializers import (
     PropertyDetailSerializer, PropertyCreateSerializer, PropertyEnquirySerializer,
     PropertyImageSerializer
 )
+from .services.geocoding import geocode_property
 
 
 class PropertyFilter(django_filters.FilterSet):
@@ -87,6 +88,36 @@ class PropertyViewSet(viewsets.ModelViewSet):
         elif self.action in ['create', 'update', 'partial_update']:
             return PropertyCreateSerializer
         return PropertyDetailSerializer
+    
+    def perform_create(self, serializer):
+        """Save the property and geocode it"""
+        property_instance = serializer.save()
+        
+        # Automatically geocode the property if it has an eircode or address
+        if property_instance.eircode or property_instance.address:
+            try:
+                geocode_property(property_instance)
+            except Exception as e:
+                # Log the error but don't fail the property creation
+                print(f"Geocoding failed for property {property_instance.id}: {e}")
+    
+    def perform_update(self, serializer):
+        """Update the property and re-geocode if address/eircode changed"""
+        # Check what fields are being updated
+        updating_location = any(
+            field in serializer.validated_data 
+            for field in ['eircode', 'address', 'address_line_1', 'address_line_2', 'town', 'county']
+        )
+        
+        property_instance = serializer.save()
+        
+        # Re-geocode if location fields were updated
+        if updating_location:
+            try:
+                geocode_property(property_instance)
+            except Exception as e:
+                # Log the error but don't fail the property update
+                print(f"Geocoding failed for property {property_instance.id}: {e}")
     
     @action(detail=False, methods=['get'])
     def search(self, request):

@@ -292,6 +292,13 @@ EMAIL_HOST_PASSWORD = config("SENDGRID_API_KEY", default="")  # Set in environme
 # SendGrid API Key (for using their SDK directly)
 SENDGRID_API_KEY = config("SENDGRID_API_KEY", default="")
 
+# Geocoding API Configuration (for Eircode and address geocoding)
+# HERE Maps API - Primary geocoding service with excellent Eircode support
+HERE_API_KEY = config("HERE_API_KEY", default="")
+
+# Google Maps API - Fallback geocoding service
+GOOGLE_MAPS_API_KEY = config("GOOGLE_MAPS_API_KEY", default="")
+
 # Twilio Configuration (for SMS verification)
 TWILIO_ACCOUNT_SID = config("TWILIO_ACCOUNT_SID", default="")
 TWILIO_AUTH_TOKEN = config("TWILIO_AUTH_TOKEN", default="")

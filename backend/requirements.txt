@@ -12,3 +12,5 @@ channels-redis==4.2.0
 daphne==4.1.2
 sendgrid==6.11.0
 twilio==8.10.0
+geopy==2.4.1
+googlemaps==4.10.0

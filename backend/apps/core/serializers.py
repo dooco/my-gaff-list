@@ -86,7 +86,8 @@ class PropertyListSerializer(serializers.ModelSerializer):
             'id', 'title', 'property_type', 'bedrooms', 'bathrooms',
             'rent_monthly', 'ber_rating', 'ber_color_class', 'furnished',
             'main_image_url', 'location_display', 'county_name', 'town_name',
-            'available_from', 'created_at', 'features', 'landlord', 'owner'
+            'available_from', 'created_at', 'features', 'landlord', 'owner',
+            'latitude', 'longitude', 'eircode'
         ]
     
     def get_main_image_url(self, obj):
@@ -118,6 +119,7 @@ class PropertyDetailSerializer(serializers.ModelSerializer):
             'features', 'main_image_url', 'images', 'available_from', 'contact_method',
             'county_name', 'town_name', 'location_display', 'address',
             'address_line_1', 'address_line_2', 'eircode', 'full_address',
+            'latitude', 'longitude',
             'created_at', 'updated_at', 'view_count', 'enquiry_count', 'landlord', 'owner'
         ]
     
@@ -166,6 +168,7 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
             'furnished', 'lease_duration', 'ber_rating', 'ber_number',
             'features', 'available_from', 'contact_method',
             'county', 'town', 'address', 'address_line_1', 'address_line_2', 'eircode',
+            'latitude', 'longitude',
             'images', 'new_images', 'deleted_image_ids'
         ]
     
