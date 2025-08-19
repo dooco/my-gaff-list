@@ -10,7 +10,7 @@ from sendgrid.helpers.mail import Mail
 from twilio.rest import Client
 import random
 
-from .models import EmailVerificationToken, PhoneVerificationCode, IdentityVerification
+from .models import EmailVerificationToken, PhoneVerificationCode, IdentityVerification, PasswordResetToken
 
 
 class EmailService:
@@ -155,6 +155,125 @@ class EmailService:
             
         except EmailVerificationToken.DoesNotExist:
             return False, "Invalid token"
+    
+    @staticmethod
+    def create_password_reset_token(user, ip_address=None):
+        """Create a new password reset token for a user"""
+        # Invalidate any existing unused tokens
+        PasswordResetToken.objects.filter(
+            user=user,
+            is_used=False
+        ).update(is_used=True)
+        
+        # Create new token
+        token = PasswordResetToken.objects.create(
+            user=user,
+            token=secrets.token_urlsafe(32),
+            expires_at=timezone.now() + timedelta(hours=1),  # 1 hour expiration
+            ip_address=ip_address
+        )
+        
+        return token
+    
+    @staticmethod
+    def send_password_reset_email(user, token):
+        """Send password reset email to user"""
+        reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token.token}"
+        
+        html_content = EmailService._get_password_reset_email_html(user, reset_url)
+        
+        return EmailService._send_with_django(
+            to_email=user.email,
+            subject="Reset Your Rentified Password",
+            html_content=html_content
+        )
+    
+    @staticmethod
+    def _get_password_reset_email_html(user, reset_url):
+        """Generate HTML content for password reset email"""
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px;">
+                <h1 style="color: #333; margin-bottom: 20px;">Reset Your Password</h1>
+                
+                <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    Hi {user.first_name or 'there'},
+                </p>
+                
+                <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    You requested to reset your password for your Rentified account. 
+                    Click the button below to create a new password:
+                </p>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{reset_url}" 
+                       style="background-color: #3b82f6; color: white; padding: 12px 30px; 
+                              text-decoration: none; border-radius: 6px; display: inline-block;
+                              font-weight: bold; font-size: 16px;">
+                        Reset Password
+                    </a>
+                </div>
+                
+                <p style="color: #999; font-size: 14px; line-height: 1.5;">
+                    Or copy and paste this link into your browser:<br>
+                    <span style="color: #3b82f6; word-break: break-all;">{reset_url}</span>
+                </p>
+                
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+                
+                <p style="color: #999; font-size: 12px; line-height: 1.5;">
+                    <strong>This link will expire in 1 hour.</strong><br>
+                    If you didn't request a password reset, you can safely ignore this email. 
+                    Your password won't be changed unless you click the link above and create a new one.
+                </p>
+                
+                <p style="color: #999; font-size: 12px; line-height: 1.5; margin-top: 20px;">
+                    For security reasons, we never send passwords via email.
+                </p>
+            </div>
+        </div>
+        """
+        return html_content
+    
+    @staticmethod
+    def send_password_change_confirmation(user):
+        """Send confirmation email after password change"""
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 30px;">
+                <h1 style="color: #333; margin-bottom: 20px;">Password Changed Successfully</h1>
+                
+                <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    Hi {user.first_name or 'there'},
+                </p>
+                
+                <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    Your Rentified account password has been successfully changed.
+                </p>
+                
+                <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    If you made this change, no further action is required.
+                </p>
+                
+                <p style="color: #666; font-size: 16px; line-height: 1.5;">
+                    If you didn't make this change, please contact our support team immediately 
+                    at support@rentified.ie
+                </p>
+                
+                <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+                
+                <p style="color: #999; font-size: 12px; line-height: 1.5;">
+                    This is an automated security notification from Rentified.
+                </p>
+            </div>
+        </div>
+        """
+        
+        return EmailService._send_with_django(
+            to_email=user.email,
+            subject="Your Rentified Password Has Been Changed",
+            html_content=html_content
+        )
 
 
 class SMSService:

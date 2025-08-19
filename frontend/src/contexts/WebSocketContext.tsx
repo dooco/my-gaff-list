@@ -37,11 +37,11 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
       const tokenChanged = currentToken !== lastTokenRef.current;
       
       if (shouldConnect && (!connectionRef.current || tokenChanged)) {
-        console.log('[WebSocketContext] Connecting with new token');
+        // Silently attempt connection
         
         // Disconnect existing connection if token changed
         if (tokenChanged && connectionRef.current) {
-          console.log('[WebSocketContext] Token changed, reconnecting...');
+          // Token changed, reconnecting...
           webSocketService.disconnect();
           connectionRef.current = false;
           setIsConnected(false);
@@ -50,17 +50,18 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         try {
           await webSocketService.connect({
             onOpen: () => {
-              console.log('[WebSocketContext] WebSocket connected');
               connectionRef.current = true;
               setIsConnected(true);
             },
             onClose: () => {
-              console.log('[WebSocketContext] WebSocket disconnected');
               connectionRef.current = false;
               setIsConnected(false);
             },
             onError: (error) => {
-              console.error('[WebSocketContext] WebSocket error:', error);
+              // Only log errors if they're not connection failures (which are expected when WS server is not running)
+              if (error && typeof error === 'object' && Object.keys(error).length > 0) {
+                console.warn('[WebSocketContext] WebSocket error:', error);
+              }
               connectionRef.current = false;
               setIsConnected(false);
             }
@@ -68,13 +69,12 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
           
           lastTokenRef.current = currentToken;
         } catch (error) {
-          console.error('[WebSocketContext] Failed to connect:', error);
+          // Silently fail if WebSocket server is not available
           connectionRef.current = false;
           setIsConnected(false);
         }
       } else if (!shouldConnect && connectionRef.current) {
         // User logged out or token removed
-        console.log('[WebSocketContext] Disconnecting due to auth change');
         webSocketService.disconnect();
         connectionRef.current = false;
         setIsConnected(false);
@@ -89,7 +89,6 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'access_token' || e.key === 'refresh_token') {
-        console.log('[WebSocketContext] Token changed in storage, reconnecting...');
         // Force reconnection with new token
         const currentToken = tokenStorage.getAccessToken();
         if (currentToken !== lastTokenRef.current) {

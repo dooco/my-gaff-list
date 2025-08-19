@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Map Implementation Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #10B981;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #10B981;
+        }
+        .property-link {
+            display: inline-block;
+            margin: 10px;
+            padding: 12px 20px;
+            background: #3B82F6;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            transition: background 0.3s;
+        }
+        .property-link:hover {
+            background: #2563EB;
+        }
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .status.success {
+            background: #10B981;
+            color: white;
+        }
+        .status.info {
+            background: #3B82F6;
+            color: white;
+        }
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+        .check {
+            color: #10B981;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .info {
+            background: #EFF6FF;
+            border: 1px solid #3B82F6;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning {
+            background: #FEF3C7;
+            border: 1px solid #F59E0B;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗺️ React Leaflet Map Implementation Test</h1>
+        
+        <div class="info">
+            <strong>ℹ️ Test Overview:</strong><br>
+            This page helps verify that the React Leaflet map implementation is working correctly with OpenStreetMap and Eircode geocoding.
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Implementation Status</h2>
+            <ul class="feature-list">
+                <li><span class="check">✓</span> React Leaflet dependencies installed</li>
+                <li><span class="check">✓</span> Geocoding service created for Eircode conversion</li>
+                <li><span class="check">✓</span> Backend Property model updated with lat/lng fields</li>
+                <li><span class="check">✓</span> PropertyMapLeaflet component created</li>
+                <li><span class="check">✓</span> PropertyInfoSections updated to use new map</li>
+                <li><span class="check">✓</span> Leaflet marker images configured</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🏠 Sample Properties with Eircodes</h2>
+            <p>Click on any property below to test the map functionality:</p>
+            
+            <div style="margin: 20px 0;">
+                <a href="http://localhost:3001/property/a0345333-b8a0-4e91-9abb-551b3c201036" class="property-link" target="_blank">
+                    Quant 3 Bed Cottage - Tuam, Galway (H91H2VX)
+                </a>
+                <a href="http://localhost:3001/property/df3901c5-ce6c-4ba9-9e95-1e03154b3ca5" class="property-link" target="_blank">
+                    Quant 3 Bed Cottage - Tuam, Galway (H91H2VX)
+                </a>
+                <a href="http://localhost:3001/property/cdc38ba0-0ebd-4e8a-829e-faed887a7384" class="property-link" target="_blank">
+                    Modern 2 Bed apartment - Dublin
+                </a>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔑 Key Features</h2>
+            <ul class="feature-list">
+                <li><span class="check">✓</span> <strong>Eircode Geocoding:</strong> Converts Irish postal codes to coordinates using Nominatim</li>
+                <li><span class="check">✓</span> <strong>Fallback System:</strong> Falls back to town/county if Eircode geocoding fails</li>
+                <li><span class="check">✓</span> <strong>Privacy Protection:</strong> Shows approximate location with accuracy indicator</li>
+                <li><span class="check">✓</span> <strong>Interactive Maps:</strong> Click "View on Map" to see interactive Leaflet map</li>
+                <li><span class="check">✓</span> <strong>Caching:</strong> Geocoded results cached for 7 days to reduce API calls</li>
+                <li><span class="check">✓</span> <strong>No API Keys Required:</strong> Uses free OpenStreetMap Nominatim service</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>📍 Map Confidence Levels</h2>
+            <p>The map displays different zoom levels based on geocoding confidence:</p>
+            <ul class="feature-list">
+                <li><span class="status success">High</span> - Eircode successfully geocoded (zoom level 16)</li>
+                <li><span class="status info">Medium</span> - Town/area level geocoding (zoom level 13)</li>
+                <li><span class="status info" style="background: #9CA3AF;">Low</span> - County center only (zoom level 10)</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ Note:</strong> The Nominatim geocoding service has rate limits. The implementation includes a 1-second delay between requests to be respectful of the free service.
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Testing Instructions</h2>
+            <ol style="line-height: 1.8;">
+                <li>Click on one of the property links above</li>
+                <li>Scroll down to the "Location Map" section</li>
+                <li>Click "View on Map" button to load the interactive map</li>
+                <li>Verify the map displays with the property marker</li>
+                <li>Check the accuracy indicator (Precise/Approximate/General Area)</li>
+                <li>Click on the marker to see property details popup</li>
+            </ol>
+        </div>
+
+        <div class="info">
+            <strong>💡 Implementation Details:</strong><br>
+            • The map uses React Leaflet with OpenStreetMap tiles<br>
+            • Eircode geocoding is performed client-side using Nominatim API<br>
+            • Results are cached in localStorage to minimize API calls<br>
+            • The map is lazy-loaded to improve initial page load performance<br>
+            • Dynamic imports are used to avoid SSR issues with Leaflet in Next.js
+        </div>
+    </div>
+</body>
+</html>

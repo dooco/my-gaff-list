@@ -2,7 +2,7 @@
 
 import { PropertyDetail } from '@/types/property';
 import BERBadge from './BERBadge';
-import PropertyLocationMap from './PropertyLocationMap';
+import PropertyMapLeaflet from './PropertyMapLeaflet';
 import { CalendarIcon, MapPinIcon } from '@heroicons/react/24/outline';
 
 interface PropertyInfoSectionsProps {
@@ -175,15 +175,20 @@ export default function PropertyInfoSections({ property, className = '' }: Prope
         </div>
       </section>
 
-      {/* Location Map */}
-      {property.latitude && property.longitude && (
+      {/* Location Map - Only show if there's an eircode or explicit coordinates */}
+      {(property.eircode || (property.latitude && property.longitude)) && (
         <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Location</h2>
-          <PropertyLocationMap
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Location Map</h2>
+          <PropertyMapLeaflet
+            eircode={property.eircode}
             latitude={property.latitude}
             longitude={property.longitude}
-            address={property.full_address || property.address || property.location_display}
+            address={property.full_address || property.address}
+            town={property.town_name}
+            county={property.county_name}
             title={property.title}
+            rent={property.rent_monthly}
+            bedrooms={property.bedrooms}
           />
         </section>
       )}

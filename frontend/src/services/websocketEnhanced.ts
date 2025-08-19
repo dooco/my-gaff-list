@@ -183,7 +183,10 @@ class EnhancedWebSocketService {
 
         this.ws.onerror = (error) => {
           clearTimeout(connectionTimeout);
-          console.error('[WebSocket] Connection error:', error);
+          // Only log actual errors, not connection failures
+          if (error && typeof error === 'object' && Object.keys(error).length > 0) {
+            console.warn('[WebSocket] Connection error:', error);
+          }
           this.recordError('WebSocket error');
           this.options.onError?.(error);
           this.connectionPromise = null;
@@ -192,7 +195,10 @@ class EnhancedWebSocketService {
 
         this.ws.onclose = (event) => {
           clearTimeout(connectionTimeout);
-          console.log('[WebSocket] Connection closed:', event.code, event.reason);
+          // Only log if it's an abnormal closure
+          if (event.code !== 1000 && event.code !== 1001) {
+            console.log('[WebSocket] Connection closed:', event.code, event.reason);
+          }
           
           // Update health metrics
           this.health.connected = false;

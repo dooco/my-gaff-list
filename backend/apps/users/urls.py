@@ -19,6 +19,13 @@ from .verification_views import (
     webhook_twilio_verify
 )
 
+from .password_reset_views import (
+    request_password_reset,
+    verify_reset_token,
+    reset_password,
+    validate_password_strength
+)
+
 # Create router for viewsets
 router = DefaultRouter()
 router.register(r'saved-properties', SavedPropertiesViewSet, basename='saved-properties')
@@ -61,6 +68,12 @@ urlpatterns = [
     # Webhook endpoints
     path('webhooks/stripe-identity/', webhook_stripe_identity, name='webhook-stripe-identity'),
     path('webhooks/twilio-verify/', webhook_twilio_verify, name='webhook-twilio-verify'),
+    
+    # Password reset endpoints
+    path('password/reset/', request_password_reset, name='request-password-reset'),
+    path('password/reset/verify/', verify_reset_token, name='verify-reset-token'),
+    path('password/reset/confirm/', reset_password, name='reset-password'),
+    path('password/validate/', validate_password_strength, name='validate-password'),
     
     # Include router URLs
     path('', include(router.urls)),

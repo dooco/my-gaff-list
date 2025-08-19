@@ -1,7 +1,36 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import RegexValidator
+from django.utils import timezone
 import uuid
+
+
+class UserManager(BaseUserManager):
+    """Custom user manager for email-based authentication"""
+    
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        # Set username to email if not provided
+        if 'username' not in extra_fields:
+            extra_fields['username'] = email
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('user_type', 'admin')
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+        
+        return self.create_user(email, password, **extra_fields)
 
 
 class User(AbstractUser):
@@ -39,7 +68,10 @@ class User(AbstractUser):
     
     # Use email as username
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+    
+    # Custom manager
+    objects = UserManager()
     
     class Meta:
         db_table = 'auth_user'
@@ -209,6 +241,39 @@ class PhoneVerificationCode(models.Model):
     @property
     def is_valid(self):
         return not self.is_used and not self.is_expired and self.attempts < 3
+
+
+class PasswordResetToken(models.Model):
+    """Password reset tokens for secure password recovery"""
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True, help_text="IP address that requested the reset")
+    
+    class Meta:
+        db_table = 'users_password_reset_token'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token', 'is_used']),
+            models.Index(fields=['user', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"Password reset for {self.user.email} at {self.created_at}"
+    
+    @property
+    def is_expired(self):
+        """Check if the token has expired"""
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        """Check if token is valid (not used and not expired)"""
+        return not self.is_used and not self.is_expired
 
 
 class IdentityVerification(models.Model):
