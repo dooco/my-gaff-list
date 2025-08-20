@@ -43,12 +43,14 @@ interface PropertiesMapViewProps {
   initialFilters?: any;
   className?: string;
   height?: string;
+  enableClustering?: boolean;
 }
 
 export default function PropertiesMapView({ 
   initialFilters = {},
   className = '',
-  height = '600px'
+  height = '600px',
+  enableClustering = true
 }: PropertiesMapViewProps) {
   const [markers, setMarkers] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -117,7 +119,7 @@ export default function PropertiesMapView({
 
       {/* Map container */}
       <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height }}>
-        <DynamicMap properties={markers} />
+        <DynamicMap properties={markers} enableClustering={enableClustering} />
       </div>
 
       {/* Map info and stats */}

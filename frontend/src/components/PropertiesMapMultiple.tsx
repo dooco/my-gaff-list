@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
 import Link from 'next/link';
 
@@ -38,12 +39,14 @@ interface PropertiesMapMultipleProps {
   properties: PropertyMarker[];
   center?: [number, number];
   zoom?: number;
+  enableClustering?: boolean;
 }
 
 export default function PropertiesMapMultiple({
   properties,
   center = [53.3498, -6.2603], // Ireland center
-  zoom = 7
+  zoom = 7,
+  enableClustering = true
 }: PropertiesMapMultipleProps) {
   const [isReady, setIsReady] = useState(false);
 
@@ -70,6 +73,91 @@ export default function PropertiesMapMultiple({
   // Adjust zoom based on number of properties
   const mapZoom = properties.length === 1 ? 14 : properties.length > 0 ? 10 : zoom;
 
+  // Create custom cluster icon
+  const createClusterCustomIcon = function (cluster: any) {
+    const count = cluster.getChildCount();
+    let size = 40;
+    let bgColor = '#6ecc39'; // green for small
+    
+    if (count >= 50) {
+      size = 50;
+      bgColor = '#f18017'; // orange for large
+    } else if (count >= 10) {
+      size = 45;
+      bgColor = '#f1d357'; // yellow for medium
+    }
+
+    return L.divIcon({
+      html: `<div style="
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        width: ${size}px;
+        height: ${size}px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 14px;
+        color: white;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      ">
+        <span>${count}</span>
+      </div>`,
+      className: 'custom-marker-cluster',
+      iconSize: L.point(size, size, true),
+    });
+  };
+
+  const renderMarkers = () => {
+    const markers = properties.map((property) => (
+      <Marker
+        key={property.id}
+        position={[property.latitude, property.longitude]}
+      >
+        <Popup>
+          <div className="min-w-[200px]">
+            {property.image_url && (
+              <img 
+                src={`${API_BASE_URL}${property.image_url}`} 
+                alt={property.title}
+                className="w-full h-24 object-cover rounded-t mb-2"
+              />
+            )}
+            <h3 className="font-semibold text-gray-900">{property.title}</h3>
+            <p className="text-lg font-bold text-blue-600">€{property.rent_monthly}/month</p>
+            <div className="text-sm text-gray-600 mt-1">
+              <p>{property.bedrooms} bed • {property.bathrooms} bath</p>
+              <p className="text-xs mt-1">{property.address}</p>
+            </div>
+            <Link
+              href={`/property/${property.id}`}
+              className="mt-2 inline-block text-blue-600 hover:text-blue-800 text-sm font-medium"
+            >
+              View Details →
+            </Link>
+          </div>
+        </Popup>
+      </Marker>
+    ));
+
+    if (enableClustering && properties.length > 1) {
+      return (
+        <MarkerClusterGroup
+          chunkedLoading
+          iconCreateFunction={createClusterCustomIcon}
+          maxClusterRadius={60}
+          spiderfyOnMaxZoom={true}
+          showCoverageOnHover={false}
+          zoomToBoundsOnClick={true}
+        >
+          {markers}
+        </MarkerClusterGroup>
+      );
+    }
+
+    return <>{markers}</>;
+  };
+
   return (
     <MapContainer
       center={mapCenter}
@@ -82,36 +170,7 @@ export default function PropertiesMapMultiple({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       
-      {properties.map((property) => (
-        <Marker
-          key={property.id}
-          position={[property.latitude, property.longitude]}
-        >
-          <Popup>
-            <div className="min-w-[200px]">
-              {property.image_url && (
-                <img 
-                  src={`${API_BASE_URL}${property.image_url}`} 
-                  alt={property.title}
-                  className="w-full h-24 object-cover rounded-t mb-2"
-                />
-              )}
-              <h3 className="font-semibold text-gray-900">{property.title}</h3>
-              <p className="text-lg font-bold text-blue-600">€{property.rent_monthly}/month</p>
-              <div className="text-sm text-gray-600 mt-1">
-                <p>{property.bedrooms} bed • {property.bathrooms} bath</p>
-                <p className="text-xs mt-1">{property.address}</p>
-              </div>
-              <Link
-                href={`/property/${property.id}`}
-                className="mt-2 inline-block text-blue-600 hover:text-blue-800 text-sm font-medium"
-              >
-                View Details →
-              </Link>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+      {renderMarkers()}
     </MapContainer>
   );
 }
