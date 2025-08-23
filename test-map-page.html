@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Map Page</title>
+</head>
+<body>
+    <h1>Test Map View</h1>
+    <p>Testing the map functionality on the homepage</p>
+    
+    <div style="margin: 20px;">
+        <h2>Steps to test:</h2>
+        <ol>
+            <li>Open the homepage at <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></li>
+            <li>Look for the Grid/Map toggle buttons in the top right of the property section</li>
+            <li>Click on the "Map" button to switch to map view</li>
+            <li>Check the browser console for any errors (F12 → Console tab)</li>
+        </ol>
+    </div>
+
+    <div style="margin: 20px; padding: 20px; background: #f0f0f0; border-radius: 8px;">
+        <h3>Testing API directly:</h3>
+        <button onclick="testMapAPI()">Test Map API</button>
+        <pre id="api-result"></pre>
+    </div>
+
+    <div style="margin: 20px; padding: 20px; background: #e8f4f8; border-radius: 8px;">
+        <h3>Quick Debug Info:</h3>
+        <p>Frontend URL: <a href="http://localhost:3000" target="_blank">http://localhost:3000</a></p>
+        <p>Backend API: <a href="http://localhost:8000/api/properties/map/?max_markers=5" target="_blank">http://localhost:8000/api/properties/map/?max_markers=5</a></p>
+    </div>
+
+    <script>
+        async function testMapAPI() {
+            const resultDiv = document.getElementById('api-result');
+            resultDiv.textContent = 'Loading...';
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/properties/map/?max_markers=5');
+                const data = await response.json();
+                resultDiv.textContent = JSON.stringify(data, null, 2);
+                console.log('Map API Response:', data);
+            } catch (error) {
+                resultDiv.textContent = 'Error: ' + error.message;
+                console.error('API Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -26,14 +26,27 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
   const [isConnected, setIsConnected] = React.useState(false);
   const connectionRef = useRef<boolean>(false);
   const lastTokenRef = useRef<string | null>(null);
+  const mountedRef = useRef<boolean>(false);
+
+  // Track if component is mounted
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Connect/disconnect based on auth state
   useEffect(() => {
     const handleConnection = async () => {
+      // Don't connect if component is not mounted
+      if (!mountedRef.current) return;
+      
       const currentToken = tokenStorage.getAccessToken();
       
       // Check if we need to reconnect (token changed or auth state changed)
-      const shouldConnect = isAuthenticated && currentToken;
+      // Only connect if we actually have a token
+      const shouldConnect = isAuthenticated && currentToken && currentToken !== 'undefined';
       const tokenChanged = currentToken !== lastTokenRef.current;
       
       if (shouldConnect && (!connectionRef.current || tokenChanged)) {

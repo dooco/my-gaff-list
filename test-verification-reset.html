@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Verification Reset</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .info {
+            background: #e8f4ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .warning {
+            background: #fff8e1;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #ff9800;
+        }
+        .success {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #4caf50;
+        }
+        .error {
+            background: #ffebee;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border-left: 4px solid #f44336;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: #2196F3;
+            color: white;
+        }
+        .btn-primary:hover:not(:disabled) {
+            background: #1976D2;
+        }
+        .btn-warning {
+            background: #ff9800;
+            color: white;
+        }
+        .btn-warning:hover:not(:disabled) {
+            background: #f57c00;
+        }
+        .btn-danger {
+            background: #f44336;
+            color: white;
+        }
+        .btn-danger:hover:not(:disabled) {
+            background: #d32f2f;
+        }
+        .status-display {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        .status-label {
+            font-weight: 500;
+            color: #555;
+        }
+        .status-value {
+            color: #333;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Verification Reset Tool</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> This tool helps reset stuck identity verification sessions when you get the "Verification already in progress" error.
+        </div>
+
+        <div>
+            <label for="token">JWT Access Token:</label>
+            <input type="text" id="token" placeholder="Paste your JWT access token here">
+            <small style="color: #666;">Get this from your browser's dev tools (Network tab → look for Authorization header)</small>
+        </div>
+
+        <div class="button-group">
+            <button class="btn-primary" onclick="checkStatus()">Check Status</button>
+            <button class="btn-warning" onclick="resetVerification()">Reset Stuck Verification</button>
+        </div>
+
+        <div id="statusDisplay" style="display: none;">
+            <h3>Current Verification Status:</h3>
+            <div class="status-display">
+                <div class="status-item">
+                    <span class="status-label">Can Verify:</span>
+                    <span class="status-value" id="canVerify">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Identity Verified:</span>
+                    <span class="status-value" id="identityVerified">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Verification Level:</span>
+                    <span class="status-value" id="verificationLevel">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Latest Session Status:</span>
+                    <span class="status-value" id="latestStatus">-</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Session Age:</span>
+                    <span class="status-value" id="sessionAge">-</span>
+                </div>
+            </div>
+        </div>
+
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/users';
+
+        function getToken() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                showMessage('Please enter your JWT access token', 'error');
+                return null;
+            }
+            return token;
+        }
+
+        function showMessage(message, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.innerHTML = `<div class="${type}">${message}</div>`;
+        }
+
+        async function checkStatus() {
+            const token = getToken();
+            if (!token) return;
+
+            showMessage('Checking verification status...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/verification/identity/status/`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayStatus(data);
+                
+                // Check if verification is stuck
+                if (!data.can_verify && data.latest_identity_verification) {
+                    const status = data.latest_identity_verification.status;
+                    if (['pending', 'processing', 'requires_input'].includes(status)) {
+                        showMessage('⚠️ You have a stuck verification session. Click "Reset Stuck Verification" to clear it.', 'warning');
+                    }
+                } else if (data.can_verify) {
+                    showMessage('✅ You can start a new verification session', 'success');
+                }
+            } catch (error) {
+                showMessage(`Error checking status: ${error.message}`, 'error');
+            }
+        }
+
+        function displayStatus(data) {
+            document.getElementById('statusDisplay').style.display = 'block';
+            document.getElementById('canVerify').textContent = data.can_verify ? '✅ Yes' : '❌ No';
+            document.getElementById('identityVerified').textContent = data.identity_verified ? '✅ Yes' : '❌ No';
+            document.getElementById('verificationLevel').textContent = data.verification_level || '-';
+            
+            if (data.latest_identity_verification) {
+                const latest = data.latest_identity_verification;
+                document.getElementById('latestStatus').textContent = latest.status || '-';
+                
+                // Calculate age
+                if (latest.created_at) {
+                    const created = new Date(latest.created_at);
+                    const now = new Date();
+                    const ageMinutes = Math.floor((now - created) / 60000);
+                    
+                    if (ageMinutes < 60) {
+                        document.getElementById('sessionAge').textContent = `${ageMinutes} minutes`;
+                    } else {
+                        const ageHours = Math.floor(ageMinutes / 60);
+                        document.getElementById('sessionAge').textContent = `${ageHours} hours`;
+                    }
+                } else {
+                    document.getElementById('sessionAge').textContent = '-';
+                }
+            } else {
+                document.getElementById('latestStatus').textContent = 'No sessions';
+                document.getElementById('sessionAge').textContent = '-';
+            }
+        }
+
+        async function resetVerification() {
+            const token = getToken();
+            if (!token) return;
+
+            if (!confirm('This will reset any stuck verification sessions. Continue?')) {
+                return;
+            }
+
+            showMessage('Resetting stuck verifications...', 'info');
+
+            try {
+                const response = await fetch(`${API_BASE}/verification/identity/reset/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                showMessage(`✅ ${data.message}`, 'success');
+                
+                // Refresh status after reset
+                setTimeout(() => checkStatus(), 1000);
+            } catch (error) {
+                showMessage(`Error resetting verification: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check status when token is pasted
+        document.getElementById('token').addEventListener('paste', (e) => {
+            setTimeout(() => {
+                if (e.target.value.trim()) {
+                    checkStatus();
+                }
+            }, 100);
+        });
+    </script>
+</body>
+</html>

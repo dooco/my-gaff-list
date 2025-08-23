@@ -1,6 +1,7 @@
 import Image from 'next/image';
 import { useState } from 'react';
 import BERBadge from './BERBadge';
+import VerificationBadge from './verification/VerificationBadge';
 import { Property } from '@/types/property';
 import { useAuth } from '@/hooks/useAuth';
 import { HeartIcon } from '@heroicons/react/24/outline';
@@ -142,6 +143,21 @@ export default function PropertyCard({ property, onSelect, className = '' }: Pro
         <h3 className="font-semibold text-gray-900 mb-2 line-clamp-2">
           {property.title}
         </h3>
+        
+        {/* Landlord with Verification Badge */}
+        {property.landlord && (
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-sm text-gray-600">
+              by {property.landlord.display_name || property.landlord.name}
+            </span>
+            {property.landlord.verification_level && property.landlord.verification_level !== 'none' && (
+              <VerificationBadge 
+                level={property.landlord.verification_level} 
+                size="sm"
+              />
+            )}
+          </div>
+        )}
         
         {/* Property Details */}
         <div className="flex items-center gap-3 text-sm text-gray-600 mb-3">

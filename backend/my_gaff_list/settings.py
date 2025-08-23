@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "django_filters",
     "channels",
+    "django_extensions",  # For runserver_plus with HTTPS
     # Local apps
     "apps.core",
     "apps.users",
@@ -220,7 +221,7 @@ DJOSER = {
 
 # CORS Settings
 CORS_ALLOWED_ORIGINS = config(
-    "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000"
+    "CORS_ALLOWED_ORIGINS", default="http://localhost:3000,http://127.0.0.1:3000,https://localhost:3000,https://127.0.0.1:3000,https://localhost:8443"
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
@@ -309,6 +310,8 @@ TWILIO_VERIFY_SERVICE_SID = config("TWILIO_VERIFY_SERVICE_SID", default="")
 STRIPE_PUBLIC_KEY = config("STRIPE_PUBLIC_KEY", default="")
 STRIPE_SECRET_KEY = config("STRIPE_SECRET_KEY", default="")
 STRIPE_WEBHOOK_SECRET = config("STRIPE_WEBHOOK_SECRET", default="")
+STRIPE_IDENTITY_ENABLED = config("STRIPE_IDENTITY_ENABLED", default=False, cast=bool)
+STRIPE_TEST_MODE = config("STRIPE_TEST_MODE", default=True, cast=bool)
 
 # Frontend URL for verification links
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")

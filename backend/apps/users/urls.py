@@ -19,6 +19,16 @@ from .verification_views import (
     webhook_twilio_verify
 )
 
+from .views_verification import (
+    create_identity_verification_session,
+    get_verification_status,
+    get_verification_benefits,
+    stripe_identity_webhook,
+    cancel_verification,
+    reset_verification,
+    check_session_health
+)
+
 from .password_reset_views import (
     request_password_reset,
     verify_reset_token,
@@ -65,8 +75,18 @@ urlpatterns = [
     path('verification/identity/initiate/', initiate_identity_verification, name='initiate-identity-verification'),
     path('verification/status/', verification_status, name='verification-status'),
     
+    # Enhanced Stripe Identity endpoints
+    path('verification/identity/create-session/', create_identity_verification_session, name='create-identity-session'),
+    path('verification/identity/status/', get_verification_status, name='get-identity-status'),
+    path('verification/identity/benefits/', get_verification_benefits, name='get-verification-benefits'),
+    path('verification/identity/<int:verification_id>/cancel/', cancel_verification, name='cancel-verification'),
+    path('verification/identity/reset/', reset_verification, name='reset-verification'),
+    path('verification/identity/health/', check_session_health, name='check-session-health'),
+    
     # Webhook endpoints
-    path('webhooks/stripe-identity/', webhook_stripe_identity, name='webhook-stripe-identity'),
+    path('verification/identity/webhook/', stripe_identity_webhook, name='webhook-stripe-identity'),
+    path('verification/identity/webhook/test/', stripe_identity_webhook, name='webhook-stripe-identity-test'),
+    path('webhooks/stripe-identity-legacy/', webhook_stripe_identity, name='webhook-stripe-identity-legacy'),
     path('webhooks/twilio-verify/', webhook_twilio_verify, name='webhook-twilio-verify'),
     
     # Password reset endpoints

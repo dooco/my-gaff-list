@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verification Debug Tool</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            font-size: 14px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .status-grid {
+            display: grid;
+            gap: 10px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            border-left: 3px solid #dee2e6;
+        }
+        .status-item.success {
+            border-left-color: #28a745;
+            background: #d4edda;
+        }
+        .status-item.warning {
+            border-left-color: #ffc107;
+            background: #fff3cd;
+        }
+        .status-item.error {
+            border-left-color: #dc3545;
+            background: #f8d7da;
+        }
+        .status-item.info {
+            border-left-color: #17a2b8;
+            background: #d1ecf1;
+        }
+        .status-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 13px;
+        }
+        .status-value {
+            color: #333;
+            font-size: 13px;
+            font-family: 'Monaco', 'Menlo', monospace;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+        .btn-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        .btn-danger {
+            background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%);
+            color: white;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            margin-bottom: 10px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+        }
+        .log-time {
+            color: #608b4e;
+            margin-right: 10px;
+        }
+        .log-level-info { color: #9cdcfe; }
+        .log-level-success { color: #4ec9b0; }
+        .log-level-warning { color: #ce9178; }
+        .log-level-error { color: #f48771; }
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .badge-success { background: #28a745; color: white; }
+        .badge-warning { background: #ffc107; color: #333; }
+        .badge-danger { background: #dc3545; color: white; }
+        .badge-info { background: #17a2b8; color: white; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Verification Debug Tool</h1>
+            <p class="subtitle">Comprehensive diagnostics and fixes for identity verification issues</p>
+            
+            <div style="margin-top: 20px;">
+                <input type="text" id="token" placeholder="Paste your JWT access token here">
+                <small style="color: #666;">Get from: Browser DevTools → Network → Any API call → Authorization header (copy after 'Bearer ')</small>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Current Status Card -->
+            <div class="card">
+                <h2>📊 Current Status</h2>
+                <div id="currentStatus" class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Status</span>
+                        <span class="status-value">Not loaded</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="checkStatus()">Check Status</button>
+                    <button class="btn-success" onclick="autoFix()">Auto Fix</button>
+                </div>
+            </div>
+
+            <!-- Database Records Card -->
+            <div class="card">
+                <h2>💾 Database Records</h2>
+                <div id="dbRecords" class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Records</span>
+                        <span class="status-value">Not loaded</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-warning" onclick="resetAll()">Reset All</button>
+                    <button class="btn-danger" onclick="forceCleanup()">Force Cleanup</button>
+                </div>
+            </div>
+
+            <!-- Stripe Status Card -->
+            <div class="card">
+                <h2>💳 Stripe Sessions</h2>
+                <div id="stripeStatus" class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Sessions</span>
+                        <span class="status-value">Not loaded</span>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    <button class="btn-primary" onclick="testStripe()">Test Stripe</button>
+                    <button class="btn-success" onclick="createNewSession()">New Session</button>
+                </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card">
+                <h2>⚡ Quick Actions</h2>
+                <div class="status-grid">
+                    <button class="btn-primary" onclick="simulateVerification()">Simulate Full Flow</button>
+                    <button class="btn-warning" onclick="clearCache()">Clear Frontend Cache</button>
+                    <button class="btn-danger" onclick="emergencyReset()">Emergency Reset</button>
+                    <button class="btn-success" onclick="healthCheck()">Health Check</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="card" style="margin-top: 20px;">
+            <h2>📝 Activity Log</h2>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000/api/users';
+        let logs = [];
+
+        function log(message, level = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const entry = { time, message, level };
+            logs.unshift(entry);
+            logs = logs.slice(0, 50); // Keep last 50 logs
+            
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML = logs.map(l => 
+                `<div class="log-entry">
+                    <span class="log-time">[${l.time}]</span>
+                    <span class="log-level-${l.level}">${l.message}</span>
+                </div>`
+            ).join('');
+        }
+
+        function getToken() {
+            const token = document.getElementById('token').value.trim();
+            if (!token) {
+                log('❌ No token provided', 'error');
+                return null;
+            }
+            return token;
+        }
+
+        async function apiCall(endpoint, method = 'GET', body = null) {
+            const token = getToken();
+            if (!token) return null;
+
+            const options = {
+                method,
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            };
+
+            if (body) {
+                options.body = JSON.stringify(body);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, options);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error || `HTTP ${response.status}`);
+                }
+                
+                return data;
+            } catch (error) {
+                log(`API Error: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        async function checkStatus() {
+            log('Checking verification status...', 'info');
+            
+            try {
+                const data = await apiCall('/verification/identity/status/');
+                
+                // Update status display
+                const statusDiv = document.getElementById('currentStatus');
+                statusDiv.innerHTML = `
+                    <div class="status-item ${data.can_verify ? 'success' : 'error'}">
+                        <span class="status-label">Can Verify</span>
+                        <span class="status-value">${data.can_verify ? '✅ Yes' : '❌ No'}</span>
+                    </div>
+                    <div class="status-item ${data.identity_verified ? 'success' : 'warning'}">
+                        <span class="status-label">Identity Verified</span>
+                        <span class="status-value">${data.identity_verified ? '✅ Yes' : '⚠️ No'}</span>
+                    </div>
+                    <div class="status-item info">
+                        <span class="status-label">Verification Level</span>
+                        <span class="status-value">${data.verification_level}</span>
+                    </div>
+                    <div class="status-item info">
+                        <span class="status-label">Trust Score</span>
+                        <span class="status-value">${data.trust_score}%</span>
+                    </div>
+                `;
+                
+                // Check for issues
+                if (!data.can_verify && data.latest_identity_verification) {
+                    const latest = data.latest_identity_verification;
+                    if (['pending', 'processing', 'requires_input'].includes(latest.status)) {
+                        statusDiv.innerHTML += `
+                            <div class="status-item error">
+                                <span class="status-label">⚠️ Issue Detected</span>
+                                <span class="status-value">Stuck ${latest.status}</span>
+                            </div>
+                        `;
+                        log(`⚠️ Stuck verification detected: ${latest.status}`, 'warning');
+                    }
+                }
+                
+                log('✅ Status check complete', 'success');
+                return data;
+            } catch (error) {
+                log(`❌ Failed to check status: ${error.message}`, 'error');
+            }
+        }
+
+        async function resetAll() {
+            if (!confirm('Reset all stuck verifications?')) return;
+            
+            log('Resetting all stuck verifications...', 'info');
+            
+            try {
+                const data = await apiCall('/verification/identity/reset/', 'POST');
+                log(`✅ ${data.message}`, 'success');
+                await checkStatus();
+            } catch (error) {
+                log(`❌ Reset failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function autoFix() {
+            log('🔧 Starting auto-fix sequence...', 'info');
+            
+            try {
+                // Step 1: Check current status
+                log('Step 1: Checking current status...', 'info');
+                const status = await checkStatus();
+                
+                if (status.can_verify) {
+                    log('✅ No issues detected, can verify normally', 'success');
+                    return;
+                }
+                
+                // Step 2: Reset stuck verifications
+                log('Step 2: Resetting stuck verifications...', 'info');
+                await apiCall('/verification/identity/reset/', 'POST');
+                log('✅ Reset complete', 'success');
+                
+                // Step 3: Verify fix
+                log('Step 3: Verifying fix...', 'info');
+                const newStatus = await checkStatus();
+                
+                if (newStatus.can_verify) {
+                    log('✅ Auto-fix successful! You can now verify.', 'success');
+                } else {
+                    log('⚠️ Auto-fix partial. Try Force Cleanup.', 'warning');
+                }
+            } catch (error) {
+                log(`❌ Auto-fix failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function forceCleanup() {
+            if (!confirm('Force cleanup all verification records? This is aggressive.')) return;
+            
+            log('🔥 Force cleanup initiated...', 'warning');
+            
+            try {
+                // Reset all verifications
+                await apiCall('/verification/identity/reset/', 'POST');
+                log('✅ Force cleanup complete', 'success');
+                await checkStatus();
+            } catch (error) {
+                log(`❌ Force cleanup failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function createNewSession() {
+            log('Creating new verification session...', 'info');
+            
+            try {
+                const data = await apiCall('/verification/identity/create-session/', 'POST', {
+                    return_url: window.location.origin,
+                    refresh_url: window.location.origin
+                });
+                
+                log(`✅ Session created: ${data.session_id}`, 'success');
+                
+                const sessionInfo = document.getElementById('stripeStatus');
+                sessionInfo.innerHTML = `
+                    <div class="status-item success">
+                        <span class="status-label">Session ID</span>
+                        <span class="status-value">${data.session_id.substring(0, 20)}...</span>
+                    </div>
+                    <div class="status-item info">
+                        <span class="status-label">Status</span>
+                        <span class="status-value">${data.status}</span>
+                    </div>
+                    <div class="status-item ${data.existing ? 'warning' : 'success'}">
+                        <span class="status-label">Type</span>
+                        <span class="status-value">${data.existing ? 'Existing' : 'New'}</span>
+                    </div>
+                `;
+            } catch (error) {
+                log(`❌ Failed to create session: ${error.message}`, 'error');
+            }
+        }
+
+        async function testStripe() {
+            log('Testing Stripe configuration...', 'info');
+            
+            // Check if Stripe is configured
+            if (typeof Stripe === 'undefined') {
+                log('⚠️ Stripe JS not loaded', 'warning');
+            } else {
+                log('✅ Stripe JS loaded', 'success');
+            }
+            
+            // Try to create a test session
+            try {
+                await createNewSession();
+            } catch (error) {
+                log(`❌ Stripe test failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function healthCheck() {
+            log('🏥 Running health check...', 'info');
+            
+            const checks = [];
+            
+            // Check API connectivity
+            try {
+                await apiCall('/verification/identity/status/');
+                checks.push('✅ API Connection');
+            } catch {
+                checks.push('❌ API Connection');
+            }
+            
+            // Check verification status
+            try {
+                const status = await checkStatus();
+                if (status.can_verify || status.identity_verified) {
+                    checks.push('✅ Verification Status');
+                } else {
+                    checks.push('⚠️ Verification Blocked');
+                }
+            } catch {
+                checks.push('❌ Verification Status');
+            }
+            
+            // Display results
+            checks.forEach(check => log(check, check.includes('✅') ? 'success' : check.includes('⚠️') ? 'warning' : 'error'));
+            
+            log('Health check complete', 'info');
+        }
+
+        function clearCache() {
+            log('Clearing frontend cache...', 'info');
+            localStorage.clear();
+            sessionStorage.clear();
+            log('✅ Cache cleared', 'success');
+        }
+
+        async function emergencyReset() {
+            if (!confirm('⚠️ EMERGENCY RESET: This will aggressively reset ALL verification data. Continue?')) return;
+            
+            log('🚨 Emergency reset initiated...', 'error');
+            
+            try {
+                // Reset backend
+                await apiCall('/verification/identity/reset/', 'POST');
+                
+                // Clear frontend
+                clearCache();
+                
+                // Reload status
+                await checkStatus();
+                
+                log('✅ Emergency reset complete', 'success');
+            } catch (error) {
+                log(`❌ Emergency reset failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function simulateVerification() {
+            log('🎭 Simulating full verification flow...', 'info');
+            
+            try {
+                // Step 1: Check initial status
+                log('1️⃣ Checking initial status...', 'info');
+                const initialStatus = await checkStatus();
+                
+                if (!initialStatus.can_verify) {
+                    log('2️⃣ Cannot verify, attempting reset...', 'warning');
+                    await apiCall('/verification/identity/reset/', 'POST');
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+                
+                // Step 3: Create session
+                log('3️⃣ Creating verification session...', 'info');
+                const session = await apiCall('/verification/identity/create-session/', 'POST', {
+                    return_url: window.location.origin,
+                    refresh_url: window.location.origin
+                });
+                
+                log(`4️⃣ Session created: ${session.session_id}`, 'success');
+                
+                // Step 5: Final status check
+                log('5️⃣ Final status check...', 'info');
+                await checkStatus();
+                
+                log('✅ Simulation complete', 'success');
+            } catch (error) {
+                log(`❌ Simulation failed: ${error.message}`, 'error');
+            }
+        }
+
+        // Auto-check when token is pasted
+        document.getElementById('token').addEventListener('paste', (e) => {
+            setTimeout(() => {
+                if (e.target.value.trim()) {
+                    log('Token detected, running initial check...', 'info');
+                    checkStatus();
+                }
+            }, 100);
+        });
+
+        // Initialize
+        log('Debug tool ready', 'info');
+    </script>
+</body>
+</html>

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import { ConditionalWebSocketProvider } from "@/components/ConditionalWebSocketProvider";
 import { NotificationProvider, ToastContainer } from "@/components/NotificationSystem";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -33,7 +33,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
       >
         <AuthProvider>
-          <WebSocketProvider>
+          <ConditionalWebSocketProvider>
             <NotificationProvider>
               <Header />
               <main id="main-content" className="flex-grow">
@@ -42,7 +42,7 @@ export default function RootLayout({
               <Footer />
               <ToastContainer />
             </NotificationProvider>
-          </WebSocketProvider>
+          </ConditionalWebSocketProvider>
         </AuthProvider>
       </body>
     </html>

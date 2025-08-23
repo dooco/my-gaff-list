@@ -4,13 +4,16 @@ from django.utils.html import format_html
 from django.urls import reverse
 from django.db.models import Count, Q
 from django.utils import timezone
-from .models import User, UserProfile, SavedProperty, PropertyEnquiry, UserActivity
+from .models import (
+    User, UserProfile, SavedProperty, PropertyEnquiry, UserActivity,
+    IdentityVerification, EmailVerificationToken, PhoneVerificationCode
+)
 
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
     list_display = [
-        'email', 'full_name', 'user_type_badge',
+        'email', 'full_name', 'user_type_badge', 'verification_badge',
         'is_active', 'is_staff', 'date_joined', 'last_login_display'
     ]
     list_filter = [
@@ -29,6 +32,12 @@ class UserAdmin(BaseUserAdmin):
             'fields': (
                 'first_name', 'last_name', 'phone_number',
                 'user_type'
+            )
+        }),
+        ('Verification', {
+            'fields': (
+                'is_email_verified', 'is_phone_verified', 'identity_verified',
+                'verification_level', 'trust_score'
             )
         }),
         ('Permissions', {
@@ -73,6 +82,30 @@ class UserAdmin(BaseUserAdmin):
         )
     user_type_badge.short_description = 'Type'
     user_type_badge.admin_order_field = 'user_type'
+    
+    def verification_badge(self, obj):
+        """Display verification level badge"""
+        if obj.verification_level == 'premium':
+            color = '#10b981'
+            icon = '✓✓✓'
+        elif obj.verification_level == 'standard':
+            color = '#3b82f6'
+            icon = '✓✓'
+        elif obj.verification_level == 'basic':
+            color = '#f59e0b'
+            icon = '✓'
+        else:
+            color = '#6b7280'
+            icon = '○'
+        
+        return format_html(
+            '<span style="background-color: {}; color: white; '
+            'padding: 2px 8px; border-radius: 3px; font-size: 11px;" '
+            'title="Trust Score: {}">{} {}</span>',
+            color, obj.trust_score, icon, obj.verification_level.upper()
+        )
+    verification_badge.short_description = 'Verification'
+    verification_badge.admin_order_field = 'verification_level'
     
     def last_login_display(self, obj):
         if obj.last_login:
@@ -384,3 +417,135 @@ class UserActivityAdmin(admin.ModelAdmin):
             return f"{browser} on {os}"
         return '-'
     user_agent_preview.short_description = 'Browser/OS'
+
+
+@admin.register(IdentityVerification)
+class IdentityVerificationAdmin(admin.ModelAdmin):
+    list_display = [
+        'user_email', 'verification_type', 'status_badge', 'provider',
+        'document_type', 'risk_score_display', 'created_at', 'verified_at'
+    ]
+    list_filter = [
+        'status', 'verification_type', 'provider', 'document_type',
+        'requires_manual_review', 'created_at', 'verified_at'
+    ]
+    search_fields = [
+        'user__email', 'user__first_name', 'user__last_name',
+        'stripe_verification_session_id', 'stripe_verification_report_id',
+        'failure_reason'
+    ]
+    readonly_fields = [
+        'user', 'created_at', 'updated_at', 'verified_at',
+        'stripe_verification_session_id', 'stripe_verification_report_id',
+        'verification_data'
+    ]
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('User & Type', {
+            'fields': ('user', 'verification_type', 'verification_level')
+        }),
+        ('Status', {
+            'fields': ('status', 'failure_reason', 'requires_manual_review')
+        }),
+        ('Provider Details', {
+            'fields': (
+                'provider', 'provider_session_id', 'provider_verification_id',
+                'stripe_verification_session_id', 'stripe_verification_report_id'
+            )
+        }),
+        ('Document Information', {
+            'fields': (
+                'document_type', 'document_country',
+                'document_front_url', 'document_back_url', 'selfie_url'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Risk Assessment', {
+            'fields': ('risk_score', 'verification_data')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at', 'verified_at', 'expires_at')
+        }),
+    )
+    
+    actions = ['mark_as_verified', 'mark_as_failed', 'require_manual_review']
+    
+    def user_email(self, obj):
+        url = reverse('admin:users_user_change', args=[obj.user.id])
+        return format_html('<a href="{}">{}</a>', url, obj.user.email)
+    user_email.short_description = 'User'
+    user_email.admin_order_field = 'user__email'
+    
+    def status_badge(self, obj):
+        color_map = {
+            'pending': '#f59e0b',
+            'processing': '#3b82f6',
+            'verified': '#10b981',
+            'failed': '#ef4444',
+            'expired': '#6b7280',
+            'requires_input': '#8b5cf6',
+            'canceled': '#6b7280'
+        }
+        color = color_map.get(obj.status, '#6b7280')
+        
+        icon = ''
+        if obj.status == 'verified':
+            icon = '✓ '
+        elif obj.status == 'failed':
+            icon = '✗ '
+        elif obj.status == 'processing':
+            icon = '⟳ '
+        elif obj.status == 'requires_input':
+            icon = '! '
+        
+        return format_html(
+            '<span style="background-color: {}; color: white; '
+            'padding: 2px 8px; border-radius: 3px; font-size: 11px;">{}{}</span>',
+            color, icon, obj.status.upper()
+        )
+    status_badge.short_description = 'Status'
+    status_badge.admin_order_field = 'status'
+    
+    def risk_score_display(self, obj):
+        if obj.risk_score is not None:
+            # Convert to percentage
+            score = obj.risk_score * 100
+            if score < 30:
+                color = '#10b981'  # Green - low risk
+            elif score < 70:
+                color = '#f59e0b'  # Yellow - medium risk
+            else:
+                color = '#ef4444'  # Red - high risk
+            
+            return format_html(
+                '<span style="color: {}; font-weight: bold;">{:.1f}%</span>',
+                color, score
+            )
+        return '-'
+    risk_score_display.short_description = 'Risk Score'
+    risk_score_display.admin_order_field = 'risk_score'
+    
+    def mark_as_verified(self, request, queryset):
+        updated = queryset.update(
+            status='verified',
+            verified_at=timezone.now()
+        )
+        # Update users' identity verification status
+        for verification in queryset:
+            user = verification.user
+            user.identity_verified = True
+            user.save()
+            user.update_verification_level()
+        self.message_user(request, f'{updated} verifications marked as verified.')
+    mark_as_verified.short_description = 'Mark as verified'
+    
+    def mark_as_failed(self, request, queryset):
+        updated = queryset.update(status='failed')
+        self.message_user(request, f'{updated} verifications marked as failed.')
+    mark_as_failed.short_description = 'Mark as failed'
+    
+    def require_manual_review(self, request, queryset):
+        updated = queryset.update(requires_manual_review=True)
+        self.message_user(request, f'{updated} verifications marked for manual review.')
+    require_manual_review.short_description = 'Flag for manual review'

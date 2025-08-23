@@ -20,6 +20,8 @@ export interface Landlord {
   user_type: 'landlord' | 'agent' | 'property_manager';
   company_name?: string;
   is_verified: boolean;
+  verification_level?: 'none' | 'basic' | 'standard' | 'premium';
+  trust_score?: number;
   verification_date?: string;
   preferred_contact_method: 'phone' | 'email' | 'both';
   response_time_hours: number;

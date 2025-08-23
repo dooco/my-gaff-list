@@ -60,7 +60,26 @@ class User(AbstractUser):
     # Profile completion and verification
     is_email_verified = models.BooleanField(default=False)
     is_phone_verified = models.BooleanField(default=False)
+    identity_verified = models.BooleanField(default=False, help_text='Full identity verification completed')
     profile_completed = models.BooleanField(default=False)
+    
+    # Verification level tracking
+    VERIFICATION_LEVELS = [
+        ('none', 'None'),
+        ('basic', 'Basic'),  # Email verified
+        ('standard', 'Standard'),  # Email + Phone verified
+        ('premium', 'Premium'),  # Email + Phone + Identity verified
+    ]
+    verification_level = models.CharField(
+        max_length=20, 
+        choices=VERIFICATION_LEVELS, 
+        default='none',
+        help_text='Overall verification level based on completed verifications'
+    )
+    trust_score = models.IntegerField(
+        default=0,
+        help_text='Trust score from 0-100 based on verification completeness'
+    )
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -84,6 +103,33 @@ class User(AbstractUser):
     @property
     def full_name(self):
         return f"{self.first_name} {self.last_name}".strip()
+    
+    def update_verification_level(self):
+        """Update user's verification level based on completed verifications"""
+        if self.identity_verified and self.is_phone_verified and self.is_email_verified:
+            self.verification_level = 'premium'
+            self.trust_score = 100
+        elif self.is_phone_verified and self.is_email_verified:
+            self.verification_level = 'standard'
+            self.trust_score = 70
+        elif self.is_email_verified:
+            self.verification_level = 'basic'
+            self.trust_score = 40
+        else:
+            self.verification_level = 'none'
+            self.trust_score = 0
+        self.save(update_fields=['verification_level', 'trust_score'])
+        return self.verification_level
+    
+    @property
+    def is_verified(self):
+        """Check if user has at least basic verification"""
+        return self.verification_level != 'none'
+    
+    @property
+    def has_full_verification(self):
+        """Check if user has premium verification"""
+        return self.verification_level == 'premium'
 
 
 class UserProfile(models.Model):
@@ -122,6 +168,11 @@ class UserProfile(models.Model):
         choices=[('public', 'Public'), ('private', 'Private'), ('landlords_only', 'Landlords Only')],
         default='private'
     )
+    
+    # Verification Display Settings
+    show_verification_badge = models.BooleanField(default=True, help_text='Display verification badge on profile')
+    verification_reminder_dismissed = models.BooleanField(default=False, help_text='User dismissed verification reminder')
+    last_verification_prompt = models.DateTimeField(null=True, blank=True, help_text='Last time verification was prompted')
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -285,26 +336,60 @@ class IdentityVerification(models.Model):
         ('verified', 'Verified'),
         ('failed', 'Failed'),
         ('expired', 'Expired'),
+        ('requires_input', 'Requires Input'),
+        ('canceled', 'Canceled'),
     ]
     
     VERIFICATION_TYPES = [
         ('document', 'Document Verification'),
         ('selfie', 'Selfie Verification'),
         ('address', 'Address Verification'),
+        ('full', 'Full Identity Verification'),  # Combined document + selfie + address
+    ]
+    
+    DOCUMENT_TYPES = [
+        ('passport', 'Passport'),
+        ('driving_license', 'Driving License'),
+        ('id_card', 'ID Card'),
+    ]
+    
+    VERIFICATION_LEVELS = [
+        ('basic', 'Basic'),
+        ('standard', 'Standard'),
+        ('premium', 'Premium'),
     ]
     
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='identity_verifications')
     verification_type = models.CharField(max_length=20, choices=VERIFICATION_TYPES)
     status = models.CharField(max_length=20, choices=VERIFICATION_STATUS, default='pending')
+    verification_level = models.CharField(
+        max_length=20,
+        choices=VERIFICATION_LEVELS,
+        default='basic',
+        help_text='Basic: email, Standard: email+phone, Premium: email+phone+identity'
+    )
     
     # Verification provider details
     provider = models.CharField(max_length=50, default='stripe')  # stripe, jumio, onfido
     provider_session_id = models.CharField(max_length=255, blank=True)
     provider_verification_id = models.CharField(max_length=255, blank=True)
     
+    # Stripe-specific fields
+    stripe_verification_session_id = models.CharField(max_length=255, blank=True, db_index=True)
+    stripe_verification_report_id = models.CharField(max_length=255, blank=True)
+    
+    # Document details
+    document_type = models.CharField(max_length=50, blank=True, choices=DOCUMENT_TYPES)
+    document_country = models.CharField(max_length=2, blank=True, help_text='ISO 3166-1 alpha-2 country code')
+    document_front_url = models.URLField(blank=True, help_text='URL to document front image')
+    document_back_url = models.URLField(blank=True, help_text='URL to document back image')
+    selfie_url = models.URLField(blank=True, help_text='URL to selfie image')
+    
     # Verification results
     verification_data = models.JSONField(default=dict, blank=True)
     failure_reason = models.TextField(blank=True)
+    risk_score = models.FloatField(null=True, blank=True, help_text='Risk score from 0 to 1')
+    requires_manual_review = models.BooleanField(default=False)
     
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
@@ -318,10 +403,24 @@ class IdentityVerification(models.Model):
             models.Index(fields=['user', 'status']),
             models.Index(fields=['verification_type', 'status']),
             models.Index(fields=['provider_session_id']),
+            models.Index(fields=['stripe_verification_session_id']),
         ]
     
     def __str__(self):
         return f"{self.verification_type} verification for {self.user.email} - {self.status}"
+    
+    @property
+    def is_expired(self):
+        """Check if verification has expired"""
+        if not self.expires_at:
+            return False
+        from django.utils import timezone
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        """Check if verification is currently valid"""
+        return self.status == 'verified' and not self.is_expired
 
 
 class PropertyEnquiry(models.Model):

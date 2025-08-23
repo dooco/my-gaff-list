@@ -101,8 +101,8 @@ class EnhancedWebSocketService {
       try {
         const token = this.getAuthToken();
         if (!token) {
-          console.error('[WebSocket] No auth token available');
-          this.handleConnectionError('No authentication token');
+          // Silently fail if no auth token - this is expected on public pages
+          this.state = 'disconnected';
           reject(new Error('No authentication token'));
           return;
         }
