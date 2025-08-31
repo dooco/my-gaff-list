@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import SearchBar from '@/components/SearchBar';
+import AdvancedSearchBar from '@/components/AdvancedSearchBar';
+import FilterChips from '@/components/FilterChips';
 import PropertyGrid from '@/components/PropertyGrid';
 import { useProperties } from '@/hooks/useProperties';
 import { Property, PropertyFilters } from '@/types/property';
@@ -24,6 +25,12 @@ export default function PropertiesPage() {
 
   const clearFilters = () => {
     setFilters({});
+  };
+
+  const handleRemoveFilter = (key: keyof PropertyFilters) => {
+    const updatedFilters = { ...filters };
+    delete updatedFilters[key];
+    setFilters(updatedFilters);
   };
 
   return (
@@ -53,83 +60,18 @@ export default function PropertiesPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Section */}
         <div className="mb-8">
-          <SearchBar 
+          <AdvancedSearchBar 
             onSearch={handleSearch}
             loading={loading}
           />
         </div>
 
-        {/* Active Filters */}
-        {Object.keys(filters).length > 0 && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-gray-700">Active Filters</h2>
-              <button
-                onClick={clearFilters}
-                className="text-sm text-blue-600 hover:text-blue-700"
-              >
-                Clear all
-              </button>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {filters.county && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                  County: {filters.county}
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, county: undefined }))}
-                    className="ml-2 text-blue-600 hover:text-blue-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.town && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
-                  Town: {filters.town}
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, town: undefined }))}
-                    className="ml-2 text-blue-600 hover:text-blue-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.property_type && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
-                  Type: {filters.property_type}
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, property_type: undefined }))}
-                    className="ml-2 text-green-600 hover:text-green-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.bedrooms && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-purple-100 text-purple-800">
-                  {filters.bedrooms} bed{filters.bedrooms !== 1 ? 's' : ''}
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, bedrooms: undefined }))}
-                    className="ml-2 text-purple-600 hover:text-purple-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-              {filters.rent_max && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-orange-100 text-orange-800">
-                  Max: €{filters.rent_max}
-                  <button
-                    onClick={() => setFilters(prev => ({ ...prev, rent_max: undefined }))}
-                    className="ml-2 text-orange-600 hover:text-orange-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Active Filters with FilterChips */}
+        <FilterChips 
+          filters={filters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={clearFilters}
+        />
 
         {/* Results Header */}
         <div className="mb-6">

@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import SearchBar from '@/components/SearchBar';
+import AdvancedSearchBar from '@/components/AdvancedSearchBar';
+import FilterChips from '@/components/FilterChips';
 import PropertyGrid from '@/components/PropertyGrid';
 import { useProperties } from '@/hooks/useProperties';
 import { Property, PropertyFilters } from '@/types/property';
@@ -36,6 +37,16 @@ export default function Home() {
     router.push(`/property/${property.id}`);
   };
 
+  const handleRemoveFilter = (key: keyof PropertyFilters) => {
+    const updatedFilters = { ...filters };
+    delete updatedFilters[key];
+    setFilters(updatedFilters);
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({});
+  };
+
   // Debug logging
   console.log('Current view mode:', viewMode);
 
@@ -63,11 +74,18 @@ export default function Home() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search Section */}
         <div className="mb-8">
-          <SearchBar 
+          <AdvancedSearchBar 
             onSearch={handleSearch}
             loading={loading}
           />
         </div>
+
+        {/* Filter Chips - Show active filters */}
+        <FilterChips 
+          filters={filters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
 
         {/* Results Section */}
         <div className="mb-4">
@@ -110,35 +128,6 @@ export default function Home() {
               </div>
             </div>
           </div>
-          {Object.keys(filters).length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {filters.county && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  County: {filters.county}
-                </span>
-              )}
-              {filters.town && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  Town: {filters.town}
-                </span>
-              )}
-              {filters.property_type && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Type: {filters.property_type}
-                </span>
-              )}
-              {filters.bedrooms && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                  {filters.bedrooms} bed{filters.bedrooms !== 1 ? 's' : ''}
-                </span>
-              )}
-              {filters.rent_max && (
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                  Max: €{filters.rent_max}
-                </span>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Property Display - Grid or Map */}

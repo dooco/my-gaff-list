@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import LocationPicker from './LocationPicker';
+import SearchAutocomplete from './SearchAutocomplete';
 import { PropertyFilters } from '@/types/property';
 
 interface AdvancedSearchBarProps {
@@ -101,13 +102,14 @@ export default function AdvancedSearchBar({ onSearch, loading, className = '' }:
             <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-1">
               Search
             </label>
-            <input
-              type="text"
-              id="search"
+            <SearchAutocomplete
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Keywords, area, property name..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              onChange={setSearchTerm}
+              onSelect={(value) => {
+                setSearchTerm(value);
+                // Optionally trigger search immediately on selection
+              }}
+              placeholder="Search properties, areas, features..."
             />
           </div>
         </div>
