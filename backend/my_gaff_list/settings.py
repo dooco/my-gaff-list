@@ -31,6 +31,8 @@ DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
 
+# Check if we should use PostgreSQL (for production or when explicitly set)
+USE_POSTGRES = config("USE_POSTGRES", default=False, cast=bool)
 
 # Application definition
 
@@ -56,6 +58,10 @@ INSTALLED_APPS = [
     "apps.landlords",
     "apps.messaging",
 ]
+
+# Add PostgreSQL-specific apps if using PostgreSQL
+if USE_POSTGRES:
+    INSTALLED_APPS.insert(6, "django.contrib.postgres")
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
@@ -93,12 +99,24 @@ ASGI_APPLICATION = "my_gaff_list.asgi.application"
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+if USE_POSTGRES:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": config("DB_NAME", default="mygafflist"),
+            "USER": config("DB_USER", default="postgres"),
+            "PASSWORD": config("DB_PASSWORD", default=""),
+            "HOST": config("DB_HOST", default="localhost"),
+            "PORT": config("DB_PORT", default="5432"),
+        }
     }
-}
+else:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
 
 
 # Password validation

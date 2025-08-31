@@ -45,6 +45,13 @@ export interface Property {
   county_name: string;
   town_name: string;
   available_from: string;
+  available_to?: string;
+  lease_duration_type?: 'short_term' | 'long_term';
+  pet_friendly?: boolean;
+  parking_type?: 'none' | 'street' | 'dedicated' | 'garage';
+  outdoor_space?: 'none' | 'balcony' | 'patio' | 'garden';
+  bills_included?: boolean;
+  viewing_type?: 'in_person' | 'virtual' | 'both';
   created_at: string;
   features: string[];
   landlord?: Landlord;
@@ -83,9 +90,18 @@ export interface PropertyFilters {
   bedrooms_max?: number;
   rent_min?: number;
   rent_max?: number;
-  ber_rating?: string[];
+  ber_rating?: string;  // Changed to single selection
   furnished?: string;
   search?: string;
+  // New filter fields
+  lease_duration_type?: 'short_term' | 'long_term';
+  available_from?: string;  // ISO date string
+  available_to?: string;    // ISO date string
+  pet_friendly?: boolean;
+  parking_type?: 'none' | 'street' | 'dedicated' | 'garage';
+  outdoor_space?: 'none' | 'balcony' | 'patio' | 'garden';
+  bills_included?: boolean;
+  viewing_type?: 'in_person' | 'virtual' | 'both';
 }
 
 export interface FilterOptions {
@@ -93,6 +109,10 @@ export interface FilterOptions {
   house_types: { value: string; label: string }[];
   ber_ratings: { value: string; label: string }[];
   furnished_options: { value: string; label: string }[];
+  lease_duration_types: { value: string; label: string }[];
+  parking_types: { value: string; label: string }[];
+  outdoor_space_types: { value: string; label: string }[];
+  viewing_types: { value: string; label: string }[];
   bedroom_options: { value: number; label: string }[];
   price_ranges: { value: string; label: string }[];
 }

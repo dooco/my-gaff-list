@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from django.conf import settings
 import uuid
 import os
 import re
@@ -178,6 +179,31 @@ class Property(models.Model):
         ('message_only', 'Message Only'),
     ]
     
+    LEASE_DURATION_TYPES = [
+        ('short_term', 'Short-term (< 12 months)'),
+        ('long_term', 'Long-term (12+ months)'),
+    ]
+    
+    PARKING_TYPES = [
+        ('none', 'No Parking'),
+        ('street', 'Street Parking'),
+        ('dedicated', 'Dedicated Spot'),
+        ('garage', 'Garage'),
+    ]
+    
+    OUTDOOR_SPACE_TYPES = [
+        ('none', 'None'),
+        ('balcony', 'Balcony'),
+        ('patio', 'Patio'),
+        ('garden', 'Garden'),
+    ]
+    
+    VIEWING_TYPES = [
+        ('in_person', 'In-Person Only'),
+        ('virtual', 'Virtual Only'),
+        ('both', 'In-Person or Virtual'),
+    ]
+    
     # Basic Info
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200)
@@ -240,6 +266,35 @@ class Property(models.Model):
     
     # Availability
     available_from = models.DateField()
+    available_to = models.DateField(null=True, blank=True, help_text="End date for lease (optional)")
+    
+    # Additional Filter Fields
+    lease_duration_type = models.CharField(
+        max_length=20, 
+        choices=LEASE_DURATION_TYPES, 
+        blank=True,
+        help_text="Short-term (< 12 months) or Long-term (12+ months)"
+    )
+    pet_friendly = models.BooleanField(default=False, help_text="Are pets allowed?")
+    parking_type = models.CharField(
+        max_length=20, 
+        choices=PARKING_TYPES, 
+        default='none',
+        help_text="Type of parking available"
+    )
+    outdoor_space = models.CharField(
+        max_length=20, 
+        choices=OUTDOOR_SPACE_TYPES, 
+        default='none',
+        help_text="Type of outdoor space available"
+    )
+    bills_included = models.BooleanField(default=False, help_text="Are bills included in rent?")
+    viewing_type = models.CharField(
+        max_length=20, 
+        choices=VIEWING_TYPES, 
+        default='both',
+        help_text="How can the property be viewed?"
+    )
     
     # Contact Method
     contact_method = models.CharField(max_length=20, choices=CONTACT_METHODS, default='direct')
@@ -311,8 +366,31 @@ class Property(models.Model):
             return 'ber-g'  # Maroon
         return 'ber-exempt'  # Grey for exempt
     
+    def clean(self):
+        """Validate model fields"""
+        super().clean()
+        
+        # Validate date range
+        if self.available_to and self.available_from:
+            if self.available_to <= self.available_from:
+                raise ValidationError({
+                    'available_to': 'End date must be after start date.'
+                })
+        
+        # Auto-set lease duration type based on dates if not set
+        if self.available_from and self.available_to and not self.lease_duration_type:
+            from datetime import timedelta
+            duration = self.available_to - self.available_from
+            if duration < timedelta(days=365):
+                self.lease_duration_type = 'short_term'
+            else:
+                self.lease_duration_type = 'long_term'
+    
     def save(self, *args, **kwargs):
         """Override save to geocode eircode when it changes"""
+        # Run validation
+        self.full_clean()
+        
         # Check if eircode has changed
         geocode_needed = False
         
@@ -379,5 +457,21 @@ class Property(models.Model):
         """Increment enquiry count"""
         self.enquiry_count += 1
         self.save(update_fields=['enquiry_count'])
+
+
+class PropertySearchQuery(models.Model):
+    """Track search queries for analytics and suggestions"""
+    query = models.CharField(max_length=255)
+    filters = models.JSONField(default=dict)
+    results_count = models.PositiveIntegerField(default=0)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    searched_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-searched_at']
+        verbose_name_plural = "Property search queries"
+    
+    def __str__(self):
+        return f"Search: {self.query} ({self.results_count} results)"
 
 

@@ -16,6 +16,7 @@ from .serializers import (
     PropertyImageSerializer
 )
 from .services.geocoding import geocode_property
+from .services.search import PropertySearchEngine
 
 
 class PropertyFilter(django_filters.FilterSet):
@@ -28,15 +29,29 @@ class PropertyFilter(django_filters.FilterSet):
     bedrooms_max = django_filters.NumberFilter(field_name='bedrooms', lookup_expr='lte')
     rent_min = django_filters.NumberFilter(field_name='rent_monthly', lookup_expr='gte')
     rent_max = django_filters.NumberFilter(field_name='rent_monthly', lookup_expr='lte')
-    ber_rating = django_filters.MultipleChoiceFilter(choices=Property.BER_RATINGS)
+    ber_rating = django_filters.ChoiceFilter(choices=Property.BER_RATINGS)  # Changed to single choice
     furnished = django_filters.ChoiceFilter(choices=Property.FURNISHED_CHOICES)
+    
+    # New filter fields
+    lease_duration_type = django_filters.ChoiceFilter(choices=Property.LEASE_DURATION_TYPES)
+    available_from = django_filters.DateFilter(field_name='available_from', lookup_expr='gte')
+    available_to = django_filters.DateFilter(field_name='available_to', lookup_expr='lte')
+    pet_friendly = django_filters.BooleanFilter()
+    parking_type = django_filters.ChoiceFilter(choices=Property.PARKING_TYPES)
+    outdoor_space = django_filters.ChoiceFilter(choices=Property.OUTDOOR_SPACE_TYPES)
+    bills_included = django_filters.BooleanFilter()
+    viewing_type = django_filters.ChoiceFilter(choices=Property.VIEWING_TYPES)
+    
+    # Search filter
     search = django_filters.CharFilter(method='search_filter')
     
     class Meta:
         model = Property
         fields = [
             'county', 'town', 'property_type', 'bedrooms', 'bedrooms_min', 
-            'bedrooms_max', 'rent_min', 'rent_max', 'ber_rating', 'furnished'
+            'bedrooms_max', 'rent_min', 'rent_max', 'ber_rating', 'furnished',
+            'lease_duration_type', 'available_from', 'available_to', 'pet_friendly',
+            'parking_type', 'outdoor_space', 'bills_included', 'viewing_type'
         ]
     
     def search_filter(self, queryset, name, value):
@@ -124,37 +139,70 @@ class PropertyViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def search(self, request):
-        """Enhanced search endpoint"""
-        queryset = self.filter_queryset(self.get_queryset())
+        """Enhanced search endpoint using PropertySearchEngine"""
+        # Get search parameters
+        search_term = request.query_params.get('search', '').strip()
         
-        # Get query parameters
-        county_slug = request.query_params.get('county')
-        town_slug = request.query_params.get('town')
-        search_term = request.query_params.get('search')
+        # Build filters dictionary from query params
+        filters = {}
+        param_mapping = {
+            'county': 'county',
+            'town': 'town',
+            'property_type': 'property_type',
+            'bedrooms': 'bedrooms',
+            'bedrooms_min': 'bedrooms_min',
+            'bedrooms_max': 'bedrooms_max',
+            'rent_min': 'rent_min',
+            'rent_max': 'rent_max',
+            'ber_rating': 'ber_rating',
+            'furnished': 'furnished',
+            'lease_duration_type': 'lease_duration_type',
+            'available_from': 'available_from',
+            'available_to': 'available_to',
+            'pet_friendly': 'pet_friendly',
+            'parking_type': 'parking_type',
+            'outdoor_space': 'outdoor_space',
+            'bills_included': 'bills_included',
+            'viewing_type': 'viewing_type',
+        }
         
-        # Apply additional filtering
-        if county_slug:
-            queryset = queryset.filter(county__slug__iexact=county_slug)
+        for param, filter_name in param_mapping.items():
+            value = request.query_params.get(param)
+            if value:
+                # Handle boolean fields
+                if param in ['pet_friendly', 'bills_included']:
+                    filters[filter_name] = value.lower() in ['true', '1', 'yes']
+                # Handle numeric fields
+                elif param in ['bedrooms', 'bedrooms_min', 'bedrooms_max', 'rent_min', 'rent_max']:
+                    try:
+                        filters[filter_name] = int(value)
+                    except ValueError:
+                        pass
+                else:
+                    filters[filter_name] = value
         
-        if town_slug:
-            queryset = queryset.filter(town__slug__iexact=town_slug)
-        
-        if search_term:
-            queryset = queryset.filter(
-                Q(title__icontains=search_term) |
-                Q(description__icontains=search_term) |
-                Q(town__name__icontains=search_term) |
-                Q(county__name__icontains=search_term)
-            )
+        # Use PropertySearchEngine for advanced search
+        search_engine = PropertySearchEngine()
+        queryset, metadata = search_engine.search(
+            search_term=search_term if search_term else None,
+            filters=filters if filters else None,
+            user=request.user if request.user.is_authenticated else None
+        )
         
         # Paginate results
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = PropertyListSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
+            response = self.get_paginated_response(serializer.data)
+            # Add metadata to response
+            response.data['metadata'] = metadata
+            return response
         
         serializer = PropertyListSerializer(queryset, many=True)
-        return Response(serializer.data)
+        return Response({
+            'results': serializer.data,
+            'metadata': metadata
+        })
     
     @action(detail=False, methods=['get'])
     def filters(self, request):
@@ -164,6 +212,10 @@ class PropertyViewSet(viewsets.ModelViewSet):
             'house_types': [{'value': k, 'label': v} for k, v in Property.HOUSE_TYPES],
             'ber_ratings': [{'value': k, 'label': v} for k, v in Property.BER_RATINGS],
             'furnished_options': [{'value': k, 'label': v} for k, v in Property.FURNISHED_CHOICES],
+            'lease_duration_types': [{'value': k, 'label': v} for k, v in Property.LEASE_DURATION_TYPES],
+            'parking_types': [{'value': k, 'label': v} for k, v in Property.PARKING_TYPES],
+            'outdoor_space_types': [{'value': k, 'label': v} for k, v in Property.OUTDOOR_SPACE_TYPES],
+            'viewing_types': [{'value': k, 'label': v} for k, v in Property.VIEWING_TYPES],
             'bedroom_options': [{'value': i, 'label': f"{i} bed{'s' if i != 1 else ''}"} for i in range(1, 6)],
             'price_ranges': [
                 {'value': '0-1000', 'label': 'Up to €1,000'},
@@ -173,6 +225,96 @@ class PropertyViewSet(viewsets.ModelViewSet):
                 {'value': '2500-3000', 'label': '€2,500 - €3,000'},
                 {'value': '3000-99999', 'label': '€3,000+'},
             ]
+        })
+    
+    @action(detail=False, methods=['get'])
+    def search_suggestions(self, request):
+        """Get search suggestions based on partial query"""
+        query = request.query_params.get('q', '').strip()
+        
+        if len(query) < 2:
+            return Response({'suggestions': []})
+        
+        search_engine = PropertySearchEngine()
+        suggestions = search_engine.get_search_suggestions(query)
+        
+        return Response({'suggestions': suggestions})
+    
+    @action(detail=True, methods=['get'])
+    def similar(self, request, pk=None):
+        """Get similar properties to the current one"""
+        limit = int(request.query_params.get('limit', 6))
+        
+        search_engine = PropertySearchEngine()
+        similar_properties = search_engine.get_similar_properties(pk, limit)
+        
+        serializer = PropertyListSerializer(similar_properties, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def price_analysis(self, request):
+        """Get price analysis for a specific area and property type"""
+        filters = {
+            'county': request.query_params.get('county'),
+            'town': request.query_params.get('town'),
+            'property_type': request.query_params.get('property_type'),
+            'bedrooms': request.query_params.get('bedrooms'),
+        }
+        
+        # Remove None values
+        filters = {k: v for k, v in filters.items() if v}
+        
+        # Build queryset with filters
+        queryset = Property.objects.filter(is_active=True)
+        
+        if filters.get('county'):
+            queryset = queryset.filter(county__slug__iexact=filters['county'])
+        if filters.get('town'):
+            queryset = queryset.filter(town__slug__iexact=filters['town'])
+        if filters.get('property_type'):
+            queryset = queryset.filter(property_type=filters['property_type'])
+        if filters.get('bedrooms'):
+            try:
+                queryset = queryset.filter(bedrooms=int(filters['bedrooms']))
+            except ValueError:
+                pass
+        
+        # Calculate statistics
+        stats = queryset.aggregate(
+            avg_price=Avg('rent_monthly'),
+            min_price=Min('rent_monthly'),
+            max_price=Max('rent_monthly'),
+            total_properties=Count('id')
+        )
+        
+        # Get price distribution
+        price_ranges = [
+            (0, 1000),
+            (1000, 1500),
+            (1500, 2000),
+            (2000, 2500),
+            (2500, 3000),
+            (3000, 99999)
+        ]
+        
+        distribution = []
+        for min_price, max_price in price_ranges:
+            count = queryset.filter(
+                rent_monthly__gte=min_price,
+                rent_monthly__lt=max_price
+            ).count()
+            
+            label = f"€{min_price}-€{max_price}" if max_price < 99999 else f"€{min_price}+"
+            distribution.append({
+                'range': label,
+                'count': count,
+                'percentage': (count / stats['total_properties'] * 100) if stats['total_properties'] > 0 else 0
+            })
+        
+        return Response({
+            'filters': filters,
+            'statistics': stats,
+            'distribution': distribution
         })
     
     @action(detail=True, methods=['post'])
