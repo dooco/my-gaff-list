@@ -1,7 +1,7 @@
 """
 Test settings for Django
 """
-from settings import *
+from my_gaff_list.settings import *
 
 # Use SQLite for tests
 DATABASES = {
