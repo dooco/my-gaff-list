@@ -158,7 +158,10 @@ class PropertyManagementViewSet(viewsets.ModelViewSet):
             # Manual update of simple fields to bypass serializer issues
             simple_fields = ['title', 'description', 'address', 'property_type', 'house_type',
                            'bedrooms', 'bathrooms', 'floor_area', 'rent_monthly', 'deposit',
-                           'ber_rating', 'ber_number', 'available_from', 'contact_method', 'lease_duration']
+                           'ber_rating', 'ber_number', 'available_from', 'available_to', 
+                           'contact_method', 'lease_duration', 'lease_duration_type',
+                           'pet_friendly', 'parking_type', 'outdoor_space', 'bills_included',
+                           'viewing_type']
             
             for field in simple_fields:
                 if field in data and data[field] is not None:
@@ -171,6 +174,22 @@ class PropertyManagementViewSet(viewsets.ModelViewSet):
                         elif field == 'lease_duration' and value:
                             # Ensure lease_duration is an integer
                             value = int(value) if value and value != '' else getattr(instance, field)
+                        elif field in ['pet_friendly', 'bills_included']:
+                            # Handle boolean fields
+                            if isinstance(value, str):
+                                value = value.lower() in ['true', '1', 'yes']
+                            else:
+                                value = bool(value)
+                        elif field in ['available_from', 'available_to'] and value:
+                            # Ensure dates are properly formatted
+                            from datetime import datetime
+                            if isinstance(value, str) and value:
+                                try:
+                                    # Parse date string if needed
+                                    datetime.strptime(value, '%Y-%m-%d')
+                                except ValueError:
+                                    print(f"Invalid date format for {field}: {value}")
+                                    continue
                     except (ValueError, TypeError) as e:
                         print(f"Error converting {field} value '{value}': {e}")
                         continue

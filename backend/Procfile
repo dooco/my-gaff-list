@@ -1,0 +1,2 @@
+web: gunicorn --bind :8000 --workers 3 --threads 2 --worker-class sync --worker-connections 1000 --max-requests 1000 --max-requests-jitter 50 --timeout 120 my_gaff_list.wsgi:application
+websocket: daphne -b 0.0.0.0 -p 5000 my_gaff_list.asgi:application

@@ -71,14 +71,48 @@ class CountyViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = CountySerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name']
+    ordering_fields = ['name']
+    ordering = ['name']
     
     @action(detail=True, methods=['get'])
     def towns(self, request, slug=None):
         """Get all towns for a specific county"""
         county = self.get_object()
-        towns = county.towns.all()
+        towns = county.towns.all().order_by('name')
         serializer = TownSerializer(towns, many=True)
         return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Search counties by partial name match"""
+        query = request.query_params.get('q', '').strip()
+        if not query:
+            return Response({'counties': []})
+        
+        counties = County.objects.filter(
+            Q(name__icontains=query)
+        ).order_by('name')[:10]
+        
+        serializer = CountySerializer(counties, many=True)
+        return Response({'counties': serializer.data})
+    
+    @action(detail=False, methods=['get'])
+    def with_properties(self, request):
+        """Get counties that have active property listings"""
+        counties = County.objects.filter(
+            properties__is_active=True
+        ).distinct().annotate(
+            property_count=Count('properties', filter=Q(properties__is_active=True))
+        ).order_by('-property_count', 'name')
+        
+        serializer = CountySerializer(counties, many=True)
+        data = serializer.data
+        for i, county_data in enumerate(data):
+            county_data['property_count'] = counties[i].property_count
+        
+        return Response({'counties': data})
 
 
 class TownViewSet(viewsets.ReadOnlyModelViewSet):
@@ -86,8 +120,75 @@ class TownViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Town.objects.select_related('county')
     serializer_class = TownSerializer
     permission_classes = [AllowAny]
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ['county__slug']
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ['county__slug', 'county__id']
+    search_fields = ['name', 'county__name']
+    ordering_fields = ['name', 'county__name']
+    ordering = ['name']
+    lookup_field = 'slug'
+    
+    @action(detail=False, methods=['get'])
+    def search(self, request):
+        """Search towns by partial name match, optionally filtered by county"""
+        query = request.query_params.get('q', '').strip()
+        county_slug = request.query_params.get('county', '')
+        county_id = request.query_params.get('county_id', '')
+        
+        if not query:
+            return Response({'towns': []})
+        
+        towns_query = Town.objects.select_related('county').filter(
+            Q(name__icontains=query)
+        )
+        
+        if county_slug:
+            towns_query = towns_query.filter(county__slug=county_slug)
+        elif county_id:
+            towns_query = towns_query.filter(county__id=county_id)
+        
+        towns = towns_query.order_by('name')[:20]
+        
+        serializer = TownSerializer(towns, many=True)
+        return Response({'towns': serializer.data})
+    
+    @action(detail=False, methods=['get'])
+    def by_county(self, request):
+        """Get all towns grouped by county"""
+        counties = County.objects.prefetch_related('towns').order_by('name')
+        
+        result = {}
+        for county in counties:
+            result[county.slug] = {
+                'id': county.id,
+                'name': county.name,
+                'slug': county.slug,
+                'towns': TownSerializer(county.towns.all().order_by('name'), many=True).data
+            }
+        
+        return Response(result)
+    
+    @action(detail=False, methods=['get'])
+    def with_properties(self, request):
+        """Get towns that have active property listings, optionally filtered by county"""
+        county_slug = request.query_params.get('county', '')
+        
+        towns_query = Town.objects.select_related('county').filter(
+            properties__is_active=True
+        ).distinct().annotate(
+            property_count=Count('properties', filter=Q(properties__is_active=True))
+        )
+        
+        if county_slug:
+            towns_query = towns_query.filter(county__slug=county_slug)
+        
+        towns = towns_query.order_by('-property_count', 'name')[:50]
+        
+        serializer = TownSerializer(towns, many=True)
+        data = serializer.data
+        for i, town_data in enumerate(data):
+            town_data['property_count'] = towns[i].property_count
+        
+        return Response({'towns': data})
 
 
 class PropertyViewSet(viewsets.ModelViewSet):

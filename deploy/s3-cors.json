@@ -1,0 +1,21 @@
+{
+  "CORSRules": [
+    {
+      "AllowedHeaders": ["*"],
+      "AllowedMethods": ["GET", "PUT", "POST", "DELETE", "HEAD"],
+      "AllowedOrigins": [
+        "https://mygafflist.com",
+        "https://www.mygafflist.com",
+        "http://localhost:3000",
+        "http://localhost:8000"
+      ],
+      "ExposeHeaders": [
+        "ETag",
+        "Content-Length",
+        "Content-Type",
+        "x-amz-meta-custom-header"
+      ],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}

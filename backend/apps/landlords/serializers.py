@@ -131,7 +131,9 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
             'address', 'address_line_1', 'address_line_2', 'eircode',
             'property_type', 'house_type', 'bedrooms', 'bathrooms', 'floor_area',
             'rent_monthly', 'deposit', 'furnished', 'lease_duration',
-            'ber_rating', 'ber_number', 'features', 'available_from', 'contact_method'
+            'ber_rating', 'ber_number', 'features', 'available_from', 'available_to',
+            'contact_method', 'lease_duration_type', 'pet_friendly', 'parking_type',
+            'outdoor_space', 'bills_included', 'viewing_type'
         ]
         read_only_fields = ['id']
     
@@ -158,6 +160,19 @@ class PropertyCreateSerializer(serializers.ModelSerializer):
             except Exception as e:
                 raise serializers.ValidationError(str(e))
         return value.upper() if value else value
+    
+    def validate(self, attrs):
+        """Validate date range and other fields"""
+        available_from = attrs.get('available_from')
+        available_to = attrs.get('available_to')
+        
+        if available_to and available_from:
+            if available_to <= available_from:
+                raise serializers.ValidationError({
+                    'available_to': 'End date must be after start date.'
+                })
+        
+        return attrs
     
     def create(self, validated_data):
         county_id = validated_data.pop('county_id')
@@ -263,8 +278,9 @@ class PropertyUpdateSerializer(serializers.ModelSerializer):
             'address', 'address_line_1', 'address_line_2', 'eircode',
             'property_type', 'house_type', 'bedrooms', 'bathrooms', 'floor_area',
             'rent_monthly', 'deposit', 'furnished', 'lease_duration',
-            'ber_rating', 'ber_number', 'features', 'available_from', 'contact_method',
-            'images_to_delete'
+            'ber_rating', 'ber_number', 'features', 'available_from', 'available_to',
+            'contact_method', 'lease_duration_type', 'pet_friendly', 'parking_type',
+            'outdoor_space', 'bills_included', 'viewing_type', 'images_to_delete'
         ]
         read_only_fields = ['id']
     
@@ -292,6 +308,26 @@ class PropertyUpdateSerializer(serializers.ModelSerializer):
                     pass
         
         return super().to_internal_value(data)
+    
+    def validate(self, attrs):
+        """Validate date range and other fields"""
+        available_from = attrs.get('available_from')
+        available_to = attrs.get('available_to')
+        
+        # Get current instance values if not provided in update
+        if self.instance:
+            if available_from is None:
+                available_from = self.instance.available_from
+            if available_to is None:
+                available_to = self.instance.available_to
+        
+        if available_to and available_from:
+            if available_to <= available_from:
+                raise serializers.ValidationError({
+                    'available_to': 'End date must be after start date.'
+                })
+        
+        return attrs
     
     def validate_features(self, value):
         """Handle features that come as JSON string from form data"""
