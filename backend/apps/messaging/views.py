@@ -350,12 +350,48 @@ class MessageViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = MessageSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = MessagePagination
-    
+
     def get_queryset(self):
         user = self.request.user
-        
+
         # Only show messages from conversations where user is a participant
         return Message.objects.filter(
-            Q(conversation__participant1=user) | 
+            Q(conversation__participant1=user) |
             Q(conversation__participant2=user)
         ).select_related('sender', 'conversation').order_by('-created_at')
+
+    @action(detail=False, methods=['get'])
+    def poll(self, request):
+        """Poll for new messages since a given timestamp."""
+        user = request.user
+        since = request.query_params.get('since')
+
+        # Get messages from user's conversations
+        queryset = self.get_queryset()
+
+        # Filter by timestamp if provided
+        if since:
+            try:
+                since_date = datetime.fromisoformat(since.replace('Z', '+00:00'))
+                queryset = queryset.filter(created_at__gt=since_date)
+            except (ValueError, AttributeError):
+                pass
+
+        # Only get recent messages (last 5 minutes if no timestamp)
+        if not since:
+            five_minutes_ago = timezone.now() - timedelta(minutes=5)
+            queryset = queryset.filter(created_at__gte=five_minutes_ago)
+
+        # Exclude messages sent by the requesting user
+        queryset = queryset.exclude(sender=user)
+
+        # Limit to reasonable number
+        messages = queryset[:50]
+
+        serializer = self.get_serializer(messages, many=True)
+
+        return Response({
+            'messages': serializer.data,
+            'count': len(serializer.data),
+            'timestamp': timezone.now().isoformat()
+        })
