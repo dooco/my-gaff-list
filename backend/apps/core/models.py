@@ -2,6 +2,7 @@ from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
+from django.contrib.postgres.search import SearchVectorField
 from django.conf import settings
 import uuid
 import os
@@ -313,9 +314,18 @@ class Property(models.Model):
     # Stats
     view_count = models.PositiveIntegerField(default=0)
     enquiry_count = models.PositiveIntegerField(default=0)
-    
+
+    # Full-text search vector (PostgreSQL)
+    search_vector = SearchVectorField(null=True, blank=True, editable=False)
+
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['county', 'town']),
+            models.Index(fields=['rent_monthly']),
+            models.Index(fields=['bedrooms']),
+        ]
     
     def __str__(self):
         return f"{self.title} - €{self.rent_monthly}/month"
@@ -387,13 +397,15 @@ class Property(models.Model):
                 self.lease_duration_type = 'long_term'
     
     def save(self, *args, **kwargs):
-        """Override save to geocode eircode when it changes"""
+        """Override save to geocode eircode when it changes and update search vector"""
+        from django.contrib.postgres.search import SearchVector
+
         # Run validation
         self.full_clean()
-        
+
         # Check if eircode has changed
         geocode_needed = False
-        
+
         if self.pk:  # Existing property
             try:
                 old_property = Property.objects.get(pk=self.pk)
@@ -403,10 +415,29 @@ class Property(models.Model):
                 geocode_needed = True if self.eircode else False
         else:  # New property
             geocode_needed = True if self.eircode else False
-        
+
         # Save first
         super().save(*args, **kwargs)
-        
+
+        # Update search vector after saving
+        # Use weighted search vectors for better ranking
+        # A=1.0 (highest), B=0.4, C=0.2, D=0.1 (lowest)
+        update_fields = kwargs.get('update_fields')
+        if update_fields is None or 'search_vector' not in update_fields:
+            # Build search vector from instance values (not field references to avoid joins)
+            # Title gets highest weight (A), description gets B weight, location gets C weight
+            from django.db.models import Value as V
+            Property.objects.filter(pk=self.pk).update(
+                search_vector=(
+                    SearchVector(V(self.title), weight='A', config='english') +
+                    SearchVector(V(self.description), weight='B', config='english') +
+                    SearchVector(V(self.town.name if self.town else ''), weight='C', config='english') +
+                    SearchVector(V(self.county.name if self.county else ''), weight='C', config='english') +
+                    SearchVector(V(self.address or ''), weight='D', config='english') +
+                    SearchVector(V(self.eircode or ''), weight='D', config='simple')
+                )
+            )
+
         # Then geocode if needed (after save so we have an ID)
         if geocode_needed and self.eircode and not self.eircode.endswith('0000'):
             from apps.core.services.geocoding import geocode_property

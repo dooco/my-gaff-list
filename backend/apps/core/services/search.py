@@ -5,6 +5,7 @@ from typing import Dict, List, Optional, Tuple
 from datetime import datetime, timedelta
 from django.db.models import Q, F, Count, Avg, Min, Max, FloatField, Value, Case, When
 from django.db.models.functions import Cast
+from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank
 from django.utils import timezone
 from decimal import Decimal
 import math
@@ -112,48 +113,69 @@ class PropertySearchEngine:
         return queryset
     
     def _apply_search_term(self, queryset, search_term: str):
-        """Apply text search and calculate relevance"""
-        # Basic text search across multiple fields
-        search_query = Q(title__icontains=search_term) | \
-                      Q(description__icontains=search_term) | \
-                      Q(town__name__icontains=search_term) | \
-                      Q(county__name__icontains=search_term) | \
-                      Q(address__icontains=search_term) | \
-                      Q(eircode__icontains=search_term)
-        
-        queryset = queryset.filter(search_query)
-        
-        # Calculate basic relevance score (would be more sophisticated with PostgreSQL full-text search)
-        relevance_score = 1.0  # Base relevance for matching
-        
+        """Apply PostgreSQL full-text search and calculate relevance"""
+        # Create a search query object
+        search_query_obj = SearchQuery(search_term, config='english')
+
+        # Use the pre-computed search_vector if available, otherwise compute on-the-fly
+        # Filter to properties where the search_vector matches the search query
+        queryset = queryset.filter(search_vector=search_query_obj)
+
+        # Calculate search rank for relevance scoring
+        # SearchRank returns a float value indicating how well the search matches
+        # Higher values = better match
+        queryset = queryset.annotate(
+            search_rank=SearchRank(F('search_vector'), search_query_obj)
+        )
+
+        # Get the maximum search rank for normalization
+        max_rank_queryset = queryset.aggregate(max_rank=Max('search_rank'))
+        max_rank = max_rank_queryset['max_rank'] or 1.0
+
+        # Normalize the search rank to 0-1 scale for our scoring system
+        # This will be used as the relevance_score in the combined scoring
+        queryset = queryset.annotate(
+            normalized_search_rank=Cast(F('search_rank') / max_rank, FloatField())
+        )
+
+        # Return average relevance score of 0.8 for now (will use normalized_search_rank in scoring)
+        relevance_score = 0.8
+
         return queryset, relevance_score
     
     def _calculate_scores(self, queryset, filters: Optional[Dict], relevance_score: float):
         """Calculate individual scores and combine them"""
         # Quality Score
         queryset = self._calculate_quality_score(queryset)
-        
+
         # Popularity Score
         queryset = self._calculate_popularity_score(queryset)
-        
+
         # Price Competitiveness Score
         queryset = self._calculate_price_score(queryset, filters)
-        
+
         # Freshness Score
         queryset = self._calculate_freshness_score(queryset)
-        
+
         # Combine all scores
+        # If normalized_search_rank exists (from full-text search), use it
+        # Otherwise use the base relevance_score
         queryset = queryset.annotate(
+            relevance_component=Case(
+                When(normalized_search_rank__isnull=False, then=F('normalized_search_rank')),
+                default=Value(relevance_score),
+                output_field=FloatField()
+            ),
             combined_score=Cast(
                 F('quality_score') * self.weights['quality'] +
                 F('popularity_score') * self.weights['popularity'] +
                 F('price_score') * self.weights['price'] +
                 F('freshness_score') * self.weights['freshness'] +
-                Value(relevance_score * self.weights['relevance']),
+                F('relevance_component') * self.weights['relevance'],
                 output_field=FloatField()
             )
         )
-        
+
         return queryset
     
     def _calculate_quality_score(self, queryset):
@@ -235,12 +257,22 @@ class PropertySearchEngine:
     
     def _calculate_freshness_score(self, queryset):
         """Score based on how recently the property was listed or updated"""
+        from django.db.models import ExpressionWrapper, DurationField
+        from django.db.models.functions import Extract
+
         now = timezone.now()
-        
+
         # Score decay over 30 days
+        # Calculate difference between now and updated_at as a duration
         return queryset.annotate(
+            time_diff=ExpressionWrapper(
+                now - F('updated_at'),
+                output_field=DurationField()
+            )
+        ).annotate(
+            # Extract total seconds from the duration and convert to days
             days_since_update=Cast(
-                (now - F('updated_at')).total_seconds() / 86400,
+                Extract('time_diff', 'epoch') / 86400.0,
                 output_field=FloatField()
             ),
             freshness_score=Case(
