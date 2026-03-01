@@ -1,0 +1,476 @@
+# Production Readiness Assessment: My Gaff List (Rentified)
+
+**Assessment Date:** 2026-02-28  
+**Project:** Irish Property Rental Platform  
+**Stack:** Django 5.1 (Backend) + Next.js 15 (Frontend)  
+**Assessor:** AI Code Review Agent
+
+---
+
+## 1. Executive Summary
+
+**Overall Readiness Score: 65/100** ⚠️ **Not Production Ready**
+
+The My Gaff List project is a well-architected full-stack application with solid foundations. However, several critical issues must be addressed before production deployment, particularly around **security**, **error handling**, **testing**, and **monitoring**.
+
+### Quick Summary
+| Area | Score | Status |
+|------|-------|--------|
+| Security | 60/100 | ⚠️ Needs Work |
+| Authentication | 75/100 | ⚠️ Acceptable |
+| Error Handling | 40/100 | 🔴 Critical |
+| Testing | 45/100 | 🔴 Critical |
+| Performance | 70/100 | ⚠️ Acceptable |
+| Infrastructure | 65/100 | ⚠️ Needs Work |
+| Documentation | 80/100 | ✅ Good |
+| Code Quality | 75/100 | ✅ Good |
+
+---
+
+## 2. Current State Assessment
+
+### 2.1 Backend (Django)
+
+**Strengths:**
+- Clean app separation (core, users, landlords, messaging, api)
+- Proper use of Django REST Framework
+- JWT authentication with SimpleJWT
+- PostgreSQL full-text search implementation
+- WebSocket support via Django Channels
+- Good model design with soft delete, UUID primary keys
+- Rate limiting on WebSocket consumer
+
+**Weaknesses:**
+- No LOGGING configuration in settings.py
+- InMemoryChannelLayer used (not production-ready)
+- LocalMemCache used (not scalable)
+- CORS_ALLOW_ALL_ORIGINS = True when DEBUG
+- Missing API rate limiting
+- No request validation middleware
+
+### 2.2 Frontend (Next.js)
+
+**Strengths:**
+- Modern Next.js 15 with App Router
+- TypeScript throughout
+- Good component structure
+- Auth context with token refresh
+- Tailwind CSS v4
+
+**Weaknesses:**
+- Tokens stored in localStorage (XSS vulnerability)
+- No error boundaries (error.tsx files missing)
+- No loading states (loading.tsx files missing)
+- No 404 handler (not-found.tsx missing)
+- Limited test coverage (4 component tests)
+
+### 2.3 Infrastructure
+
+**Strengths:**
+- Docker Compose setup available
+- Deployment documentation for AWS
+- .env.example files provided
+- Nginx configuration referenced
+
+**Weaknesses:**
+- No CI/CD pipeline (.github/workflows missing)
+- No health check endpoints
+- No metrics/monitoring setup
+- Production secrets documentation incomplete
+
+---
+
+## 3. Critical Issues (Must Fix Before Production)
+
+### 🔴 CRITICAL-1: Token Storage in localStorage
+**Location:** `frontend/src/utils/tokenStorage.ts:11-14`
+```typescript
+localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
+localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
+```
+**Risk:** XSS attacks can steal auth tokens  
+**Fix:** Use httpOnly cookies for token storage  
+**Effort:** 3-5 days
+
+---
+
+### 🔴 CRITICAL-2: No Django LOGGING Configuration
+**Location:** `backend/my_gaff_list/settings.py`
+**Risk:** No visibility into production errors  
+**Fix:** Add comprehensive logging configuration
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'ERROR',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': '/var/log/mygafflist/django.log',
+            'maxBytes': 1024*1024*5,  # 5 MB
+            'backupCount': 5,
+            'formatter': 'verbose',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'file'],
+        'level': 'WARNING',
+    },
+}
+```
+**Effort:** 1 day
+
+---
+
+### 🔴 CRITICAL-3: InMemoryChannelLayer for WebSockets
+**Location:** `backend/my_gaff_list/settings.py:217-219`
+```python
+CHANNEL_LAYERS = {
+    "default": {"BACKEND": "channels.layers.InMemoryChannelLayer"},
+}
+```
+**Risk:** WebSocket messages won't work across multiple server instances  
+**Fix:** Use Redis channel layer (already commented in code)
+```python
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [(os.environ.get('REDIS_HOST', 'localhost'), 6379)],
+        },
+    },
+}
+```
+**Effort:** 0.5 days
+
+---
+
+### 🔴 CRITICAL-4: Missing API Rate Limiting
+**Location:** `backend/my_gaff_list/settings.py` (REST_FRAMEWORK config)
+**Risk:** API abuse, DDoS, brute force attacks  
+**Fix:** Add throttling configuration
+```python
+REST_FRAMEWORK = {
+    # ... existing config ...
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour',
+        'login': '5/minute',
+    }
+}
+```
+**Effort:** 1 day
+
+---
+
+### 🔴 CRITICAL-5: No Error Boundaries in Frontend
+**Location:** `frontend/src/app/` (missing error.tsx, not-found.tsx)
+**Risk:** Unhandled errors crash entire app  
+**Fix:** Add error boundaries to each route segment
+```typescript
+// frontend/src/app/error.tsx
+'use client';
+export default function Error({ error, reset }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <h2>Something went wrong!</h2>
+        <button onClick={() => reset()}>Try again</button>
+      </div>
+    </div>
+  );
+}
+```
+**Effort:** 1-2 days
+
+---
+
+### 🔴 CRITICAL-6: No CI/CD Pipeline
+**Location:** `.github/workflows/` (missing)
+**Risk:** No automated testing, manual deployments error-prone  
+**Fix:** Create GitHub Actions workflow
+**Effort:** 2-3 days
+
+---
+
+## 4. Recommended Improvements (Priority Ordered)
+
+### Priority 1: Security Hardening
+
+#### SEC-1: Content Security Policy Headers
+**Location:** Add to `backend/my_gaff_list/settings.py` or nginx
+```python
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_BROWSER_XSS_FILTER = True
+X_FRAME_OPTIONS = 'DENY'
+```
+**Effort:** 0.5 days
+
+#### SEC-2: Input Sanitization Middleware
+**Location:** Create `backend/apps/core/middleware.py`
+**Risk:** SQL injection, XSS in stored data  
+**Effort:** 2 days
+
+#### SEC-3: Audit API Permissions
+**Location:** `backend/apps/core/views.py:178`
+```python
+permission_classes = [AllowAny]  # PropertyViewSet - too permissive for mutations
+```
+**Fix:** Use proper permissions for create/update/delete
+```python
+def get_permissions(self):
+    if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        return [IsAuthenticated()]
+    return [AllowAny()]
+```
+**Effort:** 1 day
+
+---
+
+### Priority 2: Error Handling & Monitoring
+
+#### ERR-1: Sentry Integration
+**Location:** Both backend and frontend
+```python
+# backend/my_gaff_list/settings.py
+import sentry_sdk
+sentry_sdk.init(
+    dsn=config('SENTRY_DSN'),
+    traces_sample_rate=0.1,
+)
+```
+**Effort:** 0.5 days
+
+#### ERR-2: Health Check Endpoint
+**Location:** Add to `backend/apps/api/urls.py`
+```python
+@api_view(['GET'])
+def health_check(request):
+    return Response({
+        'status': 'healthy',
+        'database': check_database(),
+        'redis': check_redis(),
+        'timestamp': timezone.now().isoformat()
+    })
+```
+**Effort:** 0.5 days
+
+#### ERR-3: Structured Error Responses
+**Location:** Create custom exception handler
+```python
+# backend/apps/core/exceptions.py
+from rest_framework.views import exception_handler
+
+def custom_exception_handler(exc, context):
+    response = exception_handler(exc, context)
+    if response is not None:
+        response.data = {
+            'error': True,
+            'code': response.status_code,
+            'message': response.data,
+        }
+    return response
+```
+**Effort:** 1 day
+
+---
+
+### Priority 3: Testing
+
+#### TEST-1: Backend Integration Tests
+**Location:** Expand tests in `backend/apps/*/tests/`
+**Current:** 31 test files exist but coverage unknown
+**Target:** 80% code coverage
+**Effort:** 5-7 days
+
+#### TEST-2: Frontend Component Tests
+**Location:** `frontend/src/components/__tests__/`
+**Current:** 4 test files
+**Target:** All major components tested
+**Effort:** 3-5 days
+
+#### TEST-3: E2E Tests
+**Location:** Create `frontend/e2e/` or `tests/e2e/`
+**Tool:** Playwright or Cypress
+**Effort:** 3-5 days
+
+---
+
+### Priority 4: Performance Optimization
+
+#### PERF-1: Database Query Optimization
+**Location:** `backend/apps/core/views.py`
+```python
+# Add select_related/prefetch_related where missing
+queryset = Property.objects.select_related(
+    'county', 'town', 'landlord', 'owner'
+).prefetch_related('images')
+```
+**Effort:** 1-2 days
+
+#### PERF-2: Redis Caching
+**Location:** `backend/my_gaff_list/settings.py:203-207`
+```python
+# Replace locmem with Redis
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": config('REDIS_URL'),
+    }
+}
+```
+**Effort:** 1 day
+
+#### PERF-3: Database Indexes Review
+**Location:** `backend/apps/core/models.py`
+**Current indexes look good, but add:**
+```python
+class Meta:
+    indexes = [
+        # Existing...
+        models.Index(fields=['is_active', '-created_at']),  # Common query pattern
+        GinIndex(fields=['search_vector']),  # Full-text search
+    ]
+```
+**Effort:** 0.5 days
+
+---
+
+### Priority 5: DevOps & Infrastructure
+
+#### INFRA-1: Environment Configuration
+**Location:** Create proper environment separation
+```
+backend/
+  settings/
+    __init__.py
+    base.py        # Common settings
+    development.py # DEBUG=True, etc.
+    staging.py     
+    production.py  # Hardened settings
+```
+**Effort:** 1 day
+
+#### INFRA-2: Docker Production Images
+**Location:** Update `frontend/Dockerfile`, create `backend/Dockerfile`
+**Issues:** 
+- No multi-stage builds
+- No non-root user
+- No security scanning
+**Effort:** 2 days
+
+#### INFRA-3: Secrets Management
+**Location:** Currently in .env files
+**Fix:** Use AWS Secrets Manager or HashiCorp Vault
+**Effort:** 1-2 days
+
+---
+
+## 5. Production Deployment Checklist
+
+### Pre-Deployment (Must Complete)
+- [ ] Fix token storage (httpOnly cookies)
+- [ ] Configure Django LOGGING
+- [ ] Switch to Redis channel layer
+- [ ] Add API rate limiting
+- [ ] Add error boundaries to frontend
+- [ ] Create CI/CD pipeline
+- [ ] Run security audit (bandit, npm audit)
+- [ ] Set `DEBUG=False`
+- [ ] Set `CORS_ALLOW_ALL_ORIGINS=False`
+- [ ] Configure production `ALLOWED_HOSTS`
+- [ ] Set secure cookie settings
+- [ ] Generate production `SECRET_KEY`
+- [ ] Configure HTTPS/SSL
+
+### Recommended Before Launch
+- [ ] Implement Sentry error tracking
+- [ ] Add health check endpoints
+- [ ] Set up database backups
+- [ ] Configure CDN for static files
+- [ ] Load test with realistic traffic
+- [ ] Document runbooks for common issues
+- [ ] Set up monitoring dashboards
+- [ ] Configure alerting for errors/performance
+
+### Nice to Have
+- [ ] A/B testing infrastructure
+- [ ] Feature flags
+- [ ] Blue/green deployment
+- [ ] Database read replicas
+- [ ] Geographic distribution
+
+---
+
+## 6. Effort Estimates Summary
+
+| Category | Items | Total Effort |
+|----------|-------|--------------|
+| **Critical Fixes** | 6 | 8-12 days |
+| **Security** | 3 | 3.5 days |
+| **Error Handling** | 3 | 2 days |
+| **Testing** | 3 | 11-17 days |
+| **Performance** | 3 | 2.5-3.5 days |
+| **DevOps** | 3 | 4-5 days |
+| **Total** | | **31-42 days** |
+
+**Recommended MVP Timeline:**
+- **Week 1-2:** Critical fixes (security, logging, error handling)
+- **Week 3-4:** CI/CD, basic testing, monitoring setup
+- **Week 5-6:** Performance optimization, load testing
+- **Week 7:** Documentation, runbooks, final review
+
+---
+
+## 7. Appendix: Files Requiring Changes
+
+### Backend
+| File | Changes Needed |
+|------|----------------|
+| `backend/my_gaff_list/settings.py` | LOGGING, CHANNEL_LAYERS, CACHES, REST_FRAMEWORK throttling |
+| `backend/apps/core/views.py` | Permission classes for mutations |
+| `backend/apps/api/urls.py` | Health check endpoint |
+| `backend/apps/core/middleware.py` | Create input sanitization middleware |
+
+### Frontend
+| File | Changes Needed |
+|------|----------------|
+| `frontend/src/utils/tokenStorage.ts` | Switch to httpOnly cookie approach |
+| `frontend/src/app/error.tsx` | Create error boundary |
+| `frontend/src/app/not-found.tsx` | Create 404 page |
+| `frontend/src/app/loading.tsx` | Create loading state |
+
+### New Files Needed
+| File | Purpose |
+|------|---------|
+| `.github/workflows/ci.yml` | CI pipeline |
+| `.github/workflows/cd.yml` | CD pipeline |
+| `backend/apps/core/exceptions.py` | Custom exception handler |
+| `backend/my_gaff_list/settings/production.py` | Production settings |
+| `frontend/sentry.client.config.ts` | Sentry frontend config |
+
+---
+
+## 8. Conclusion
+
+The My Gaff List project has a solid foundation with good code organization and sensible architectural choices. However, **the application is not production-ready** due to critical security vulnerabilities (localStorage tokens), missing error handling, inadequate logging, and absence of CI/CD.
+
+**Priority recommendation:** Focus on the 6 critical issues first, then move through the priority list. With ~4-6 weeks of focused work, the application can be safely deployed to production.
+
+---
+
+*Report generated by AI Code Review Agent - 2026-02-28*
