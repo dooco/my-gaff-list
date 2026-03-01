@@ -1,3 +1,10 @@
+/**
+ * Authentication Service
+ * 
+ * CRITICAL-6: Updated to use httpOnly cookie-based authentication.
+ * Tokens are stored in cookies by the server, not accessible via JavaScript.
+ */
+
 import { 
   LoginCredentials, 
   RegisterData, 
@@ -10,6 +17,18 @@ import {
 import { tokenStorage } from '@/utils/tokenStorage';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+
+// Response type for cookie-based login (no tokens in body)
+interface CookieLoginResponse {
+  user: User;
+  message: string;
+}
+
+// Response type for auth status check
+interface AuthStatusResponse {
+  authenticated: boolean;
+  user: User | null;
+}
 
 class AuthService {
   private baseUrl: string;
@@ -24,9 +43,10 @@ class AuthService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const token = tokenStorage.getAccessToken();
     
     const config: RequestInit = {
+      // CRITICAL-6: Include credentials for cookie-based auth
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -34,28 +54,15 @@ class AuthService {
       ...options,
     };
 
-    // Add authorization header if token exists
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        'Authorization': `Bearer ${token}`,
-      };
-    }
-
     const response = await fetch(url, config);
     
     // Handle token expiration
-    if (response.status === 401 && token) {
+    if (response.status === 401) {
       // Try to refresh token
       try {
-        await this.refreshToken();
-        // Retry the original request with new token
-        const newToken = tokenStorage.getAccessToken();
-        if (newToken) {
-          config.headers = {
-            ...config.headers,
-            'Authorization': `Bearer ${newToken}`,
-          };
+        const refreshed = await this.refreshToken();
+        if (refreshed) {
+          // Retry the original request
           const retryResponse = await fetch(url, config);
           if (!retryResponse.ok) {
             throw new Error(`HTTP error! status: ${retryResponse.status}`);
@@ -63,7 +70,7 @@ class AuthService {
           return retryResponse.json();
         }
       } catch (refreshError) {
-        // If refresh fails, clear tokens and throw error
+        // If refresh fails, clear stored data
         tokenStorage.clearAll();
         throw new Error('Session expired. Please login again.');
       }
@@ -71,7 +78,7 @@ class AuthService {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      throw new Error(errorData.message || errorData.detail || `HTTP error! status: ${response.status}`);
     }
 
     return response.json();
@@ -79,75 +86,115 @@ class AuthService {
 
   // Authentication methods
   async login(credentials: LoginCredentials): Promise<LoginResponse> {
-    const response = await this.makeRequest<LoginResponse>('/api/users/auth/login/', {
+    // CRITICAL-6: Use cookie-based login endpoint
+    const response = await fetch(`${this.baseUrl}/api/users/auth/cookie/login/`, {
       method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify(credentials),
     });
 
-    // Store tokens and user data
-    tokenStorage.setTokens({
-      access: response.access,
-      refresh: response.refresh,
-    });
-    tokenStorage.setUser(response.user);
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.detail || 'Invalid credentials');
+    }
 
-    return response;
+    const data: CookieLoginResponse = await response.json();
+
+    // Store user data (tokens are in httpOnly cookies)
+    tokenStorage.setUser(data.user);
+    tokenStorage.setAuthStatus(true);
+
+    // Return in the expected format (tokens are placeholder since they're in cookies)
+    return {
+      user: data.user,
+      access: 'cookie', // Placeholder - actual token is in httpOnly cookie
+      refresh: 'cookie',
+    };
   }
 
   async register(data: RegisterData): Promise<RegisterResponse> {
-    const response = await this.makeRequest<RegisterResponse>('/api/users/auth/register/', {
+    // First register the user
+    const registerResponse = await this.makeRequest<{ id: number; email: string }>('/api/users/auth/register/', {
       method: 'POST',
       body: JSON.stringify(data),
     });
 
-    // Store tokens and user data
-    tokenStorage.setTokens({
-      access: response.access,
-      refresh: response.refresh,
+    // Then login with the new credentials to set cookies
+    const loginResponse = await this.login({
+      email: data.email,
+      password: data.password,
     });
-    tokenStorage.setUser(response.user);
 
-    return response;
+    return loginResponse;
   }
 
   async refreshToken(): Promise<AuthTokens> {
-    const refreshToken = tokenStorage.getRefreshToken();
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-
-    const response = await fetch(`${this.baseUrl}/api/users/auth/login/refresh/`, {
+    // CRITICAL-6: Use cookie-based refresh endpoint
+    const response = await fetch(`${this.baseUrl}/api/users/auth/cookie/refresh/`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        refresh: refreshToken,
-      }),
     });
 
     if (!response.ok) {
       throw new Error('Failed to refresh token');
     }
 
-    const data = await response.json();
-    
-    // Update stored tokens
-    const newTokens = {
-      access: data.access,
-      refresh: data.refresh || refreshToken, // Use new refresh token if provided
+    // Return placeholder tokens since actual tokens are in cookies
+    return {
+      access: 'cookie',
+      refresh: 'cookie',
     };
-    
-    tokenStorage.setTokens(newTokens);
-    return newTokens;
   }
 
   async logout(): Promise<void> {
+    try {
+      // CRITICAL-6: Use cookie-based logout endpoint to clear server-side cookies
+      await fetch(`${this.baseUrl}/api/users/auth/cookie/logout/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+    } catch (error) {
+      console.error('Logout request failed:', error);
+    }
+    
     // Clear local storage
     tokenStorage.clearAll();
+  }
+
+  // Check authentication status via server
+  async checkAuthStatus(): Promise<AuthStatusResponse> {
+    const response = await fetch(`${this.baseUrl}/api/users/auth/cookie/status/`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      return { authenticated: false, user: null };
+    }
+
+    const data: AuthStatusResponse = await response.json();
     
-    // Optionally call server logout endpoint if implemented
-    // await this.makeRequest('/users/auth/logout/', { method: 'POST' });
+    // Update local storage based on server response
+    if (data.authenticated && data.user) {
+      tokenStorage.setUser(data.user);
+      tokenStorage.setAuthStatus(true);
+    } else {
+      tokenStorage.clearAll();
+    }
+
+    return data;
   }
 
   // User profile methods
@@ -225,25 +272,21 @@ class AuthService {
 
   // Token management utilities
   isAuthenticated(): boolean {
-    const tokens = tokenStorage.getTokens();
-    if (!tokens) return false;
-    
-    return !tokenStorage.isTokenExpired(tokens.access);
+    // Quick check from localStorage, but actual auth is verified server-side
+    return tokenStorage.getAuthStatus();
   }
 
   getStoredUser(): User | null {
     return tokenStorage.getUser();
   }
 
-  // Auto refresh token if needed
+  // Auto refresh token if needed (simplified - server handles actual expiry)
   async autoRefreshToken(): Promise<void> {
-    if (tokenStorage.shouldRefreshToken()) {
-      try {
-        await this.refreshToken();
-      } catch (error) {
-        console.error('Auto refresh failed:', error);
-        this.logout();
-      }
+    try {
+      await this.refreshToken();
+    } catch (error) {
+      console.error('Auto refresh failed:', error);
+      this.logout();
     }
   }
 }

@@ -10,7 +10,7 @@ import {
   EyeIcon,
   EyeSlashIcon
 } from '@heroicons/react/24/outline';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 export default function ResetPasswordPage() {
   const searchParams = useSearchParams();

@@ -8,6 +8,14 @@ from .views import (
     dashboard_stats, track_activity, check_property_saved, create_property_enquiry
 )
 
+# CRITICAL-6: Cookie-based authentication views
+from .cookie_views import (
+    CookieTokenObtainPairView,
+    CookieTokenRefreshView,
+    CookieLogoutView,
+    CookieAuthStatusView,
+)
+
 from .verification_views import (
     send_email_verification,
     verify_email,
@@ -43,10 +51,16 @@ router.register(r'enquiries', UserEnquiriesViewSet, basename='user-enquiries')
 router.register(r'activities', UserActivityViewSet, basename='user-activities')
 
 urlpatterns = [
-    # Authentication endpoints
+    # Authentication endpoints (legacy - returns tokens in body)
     path('auth/login/', CustomTokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('auth/login/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('auth/register/', RegisterView.as_view(), name='register'),
+    
+    # CRITICAL-6: Cookie-based authentication endpoints (secure - httpOnly cookies)
+    path('auth/cookie/login/', CookieTokenObtainPairView.as_view(), name='cookie_token_obtain'),
+    path('auth/cookie/refresh/', CookieTokenRefreshView.as_view(), name='cookie_token_refresh'),
+    path('auth/cookie/logout/', CookieLogoutView.as_view(), name='cookie_logout'),
+    path('auth/cookie/status/', CookieAuthStatusView.as_view(), name='cookie_auth_status'),
     
     # Include djoser URLs for additional auth functionality
     path('auth/', include('djoser.urls')),

@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, MapPin, Home, DollarSign, Calendar, ImageIcon, Plus, X, Loader2 } from 'lucide-react'
 import { LandlordOrAgentRoute } from '@/components/auth/ProtectedRoute'
-import api from '@/lib/api'
+import api from '@/services/api'
 import { useAuth } from '@/hooks/useAuth'
 
 interface PropertyForm {

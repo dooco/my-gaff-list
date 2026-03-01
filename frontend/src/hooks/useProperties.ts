@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '@/lib/api';
+import api from '@/services/api';
 import { Property, PropertyDetail, PropertyFilters, ApiResponse } from '@/types/property';
 
 export const useProperties = (filters: PropertyFilters = {}) => {

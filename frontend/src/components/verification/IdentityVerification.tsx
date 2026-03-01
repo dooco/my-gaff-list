@@ -14,7 +14,7 @@ import {
   EnvelopeIcon,
   PhoneIcon
 } from '@heroicons/react/24/outline';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 import VerificationStatusWidget from './VerificationStatusWidget';
 
 interface VerificationStatus {

@@ -9,7 +9,7 @@ import {
   CheckCircleIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
-import { api } from '@/lib/api';
+import { api } from '@/services/api';
 
 interface SessionHealth {
   healthy: boolean | 'warning';

@@ -1,4 +1,9 @@
-import { tokenStorage } from '@/utils/tokenStorage';
+/**
+ * API Service
+ * 
+ * CRITICAL-6: Updated to use credentials: 'include' for httpOnly cookie auth.
+ * Tokens are automatically sent via cookies, no manual header management needed.
+ */
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 const API_URL = `${BASE_URL}/api`;
@@ -15,9 +20,10 @@ class ApiService {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const token = tokenStorage.getAccessToken();
 
     const config: RequestInit = {
+      // CRITICAL-6: Include credentials to send/receive httpOnly cookies
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
@@ -25,40 +31,32 @@ class ApiService {
       ...options,
     };
 
-    // Add authorization header if token exists
-    if (token) {
-      config.headers = {
-        ...config.headers,
-        'Authorization': `Bearer ${token}`,
-      };
-    }
-
     try {
       const response = await fetch(url, config);
 
       // Handle errors
       if (!response.ok) {
-        if (response.status === 401 && token) {
-          // Try to refresh token
+        if (response.status === 401) {
+          // Try to refresh token via cookie endpoint
           const refreshed = await this.refreshToken();
           if (refreshed) {
-            // Retry the request with new token
-            const newToken = tokenStorage.getAccessToken();
-            if (newToken) {
-              config.headers = {
-                ...config.headers,
-                'Authorization': `Bearer ${newToken}`,
-              };
-              const retryResponse = await fetch(url, config);
-              if (retryResponse.ok) {
-                return retryResponse.json();
-              }
+            // Retry the request - cookies will be sent automatically
+            const retryResponse = await fetch(url, config);
+            if (retryResponse.ok) {
+              return retryResponse.json();
             }
           }
+          // Refresh failed - trigger logout
+          throw new Error('Session expired. Please login again.');
         }
         
         const error = await response.text();
         throw new Error(error || `HTTP error! status: ${response.status}`);
+      }
+
+      // Handle 204 No Content
+      if (response.status === 204) {
+        return {} as T;
       }
 
       return response.json();
@@ -69,32 +67,21 @@ class ApiService {
   }
 
   private async refreshToken(): Promise<boolean> {
-    const refreshToken = tokenStorage.getRefreshToken();
-    if (!refreshToken) return false;
-
     try {
-      const response = await fetch(`${BASE_URL}/api/auth/token/refresh/`, {
+      // CRITICAL-6: Use cookie-based refresh endpoint
+      const response = await fetch(`${BASE_URL}/api/users/auth/cookie/refresh/`, {
         method: 'POST',
+        credentials: 'include', // Send refresh token cookie
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refresh: refreshToken }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        tokenStorage.setTokens({
-          access: data.access,
-          refresh: data.refresh || refreshToken,
-        });
-        return true;
-      }
+      return response.ok;
     } catch (error) {
       console.error('Token refresh failed:', error);
+      return false;
     }
-
-    tokenStorage.clearTokens();
-    return false;
   }
 
   // HTTP methods

@@ -18,7 +18,7 @@ jest.mock('../SearchAutocomplete', () => ({
 }));
 
 // Mock the API module
-jest.mock('@/lib/api', () => ({
+jest.mock('@/services/api', () => ({
   apiClient: {
     get: jest.fn(),
   },

@@ -172,6 +172,9 @@ AUTH_USER_MODEL = "users.User"
 # Django REST Framework
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
+        # CRITICAL-6: Cookie-based JWT authentication (primary - more secure)
+        "apps.users.authentication.CookieJWTAuthentication",
+        # Fallback to header-based auth for backwards compatibility (mobile apps, etc.)
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": [
@@ -229,6 +232,13 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
     "SLIDING_TOKEN_LIFETIME": timedelta(minutes=5),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+    # CRITICAL-6: Cookie-based token storage settings
+    "AUTH_COOKIE": "access_token",
+    "AUTH_COOKIE_REFRESH": "refresh_token",
+    "AUTH_COOKIE_SECURE": not DEBUG,  # True in production (HTTPS only)
+    "AUTH_COOKIE_HTTP_ONLY": True,  # Prevents JavaScript access (XSS protection)
+    "AUTH_COOKIE_PATH": "/",
+    "AUTH_COOKIE_SAMESITE": "Lax",  # CSRF protection while allowing same-site requests
 }
 
 # Djoser Settings

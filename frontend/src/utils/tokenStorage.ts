@@ -1,53 +1,72 @@
+/**
+ * Token Storage Utility
+ * 
+ * CRITICAL-6: Secure token storage implementation
+ * 
+ * JWT tokens are now stored in httpOnly cookies set by the server.
+ * This prevents XSS attacks from accessing tokens via JavaScript.
+ * 
+ * The frontend can no longer directly access tokens - they are automatically
+ * sent with requests via credentials: 'include'.
+ * 
+ * User data can still be stored in localStorage for UI purposes.
+ */
+
 import { AuthTokens } from '@/types/auth';
 
-const ACCESS_TOKEN_KEY = 'access_token';
-const REFRESH_TOKEN_KEY = 'refresh_token';
 const USER_KEY = 'user_data';
+const AUTH_STATUS_KEY = 'auth_status';
 
 export const tokenStorage = {
-  // Token management
-  setTokens(tokens: AuthTokens): void {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem(ACCESS_TOKEN_KEY, tokens.access);
-      localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refresh);
-    }
+  /**
+   * @deprecated Tokens are now stored in httpOnly cookies by the server.
+   * This method is kept for backwards compatibility but should not be used.
+   */
+  setTokens(_tokens: AuthTokens): void {
+    // No-op: Tokens are set via httpOnly cookies by the server
+    console.warn('tokenStorage.setTokens is deprecated. Tokens are now stored in httpOnly cookies.');
   },
 
+  /**
+   * @deprecated Tokens are stored in httpOnly cookies and cannot be accessed by JavaScript.
+   * Use the auth/cookie/status endpoint to check authentication status.
+   */
   getAccessToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(ACCESS_TOKEN_KEY);
-    }
+    // Cannot access httpOnly cookies from JavaScript (that's the point!)
+    console.warn('tokenStorage.getAccessToken is deprecated. Use auth status endpoint instead.');
     return null;
   },
 
+  /**
+   * @deprecated Tokens are stored in httpOnly cookies and cannot be accessed by JavaScript.
+   */
   getRefreshToken(): string | null {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem(REFRESH_TOKEN_KEY);
-    }
+    // Cannot access httpOnly cookies from JavaScript
+    console.warn('tokenStorage.getRefreshToken is deprecated. Use cookie refresh endpoint instead.');
     return null;
   },
 
+  /**
+   * @deprecated Tokens are stored in httpOnly cookies and cannot be accessed by JavaScript.
+   */
   getTokens(): AuthTokens | null {
-    const access = this.getAccessToken();
-    const refresh = this.getRefreshToken();
-    
-    if (access && refresh) {
-      return { access, refresh };
-    }
+    console.warn('tokenStorage.getTokens is deprecated. Tokens are in httpOnly cookies.');
     return null;
   },
 
+  /**
+   * @deprecated Use the logout endpoint which clears cookies server-side.
+   */
   removeTokens(): void {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem(ACCESS_TOKEN_KEY);
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-    }
+    // Cookies are cleared by the server on logout
+    console.warn('tokenStorage.removeTokens is deprecated. Use logout endpoint instead.');
   },
 
-  // User data management
+  // User data management (still uses localStorage - safe for non-sensitive UI data)
   setUser(user: any): void {
     if (typeof window !== 'undefined') {
       localStorage.setItem(USER_KEY, JSON.stringify(user));
+      localStorage.setItem(AUTH_STATUS_KEY, 'true');
     }
   },
 
@@ -62,49 +81,51 @@ export const tokenStorage = {
   removeUser(): void {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(AUTH_STATUS_KEY);
     }
+  },
+
+  // Auth status (for quick UI checks - actual auth is via cookies)
+  setAuthStatus(authenticated: boolean): void {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(AUTH_STATUS_KEY, authenticated ? 'true' : 'false');
+    }
+  },
+
+  getAuthStatus(): boolean {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(AUTH_STATUS_KEY) === 'true';
+    }
+    return false;
   },
 
   // Complete cleanup
   clearAll(): void {
-    this.removeTokens();
     this.removeUser();
+    // Note: Actual tokens are cleared by server via cookie deletion
   },
 
-  // Token validation
-  isTokenExpired(token: string): boolean {
-    if (!token) return true;
-    
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const currentTime = Date.now() / 1000;
-      return payload.exp < currentTime;
-    } catch (error) {
-      return true;
-    }
+  /**
+   * @deprecated Token validation is now handled server-side.
+   */
+  isTokenExpired(_token: string): boolean {
+    console.warn('tokenStorage.isTokenExpired is deprecated. Server handles token validation.');
+    return false;
   },
 
-  // Get token expiry time
-  getTokenExpiry(token: string): number | null {
-    if (!token) return null;
-    
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      return payload.exp * 1000; // Convert to milliseconds
-    } catch (error) {
-      return null;
-    }
+  /**
+   * @deprecated Token expiry is now handled server-side.
+   */
+  getTokenExpiry(_token: string): number | null {
+    console.warn('tokenStorage.getTokenExpiry is deprecated. Server handles token expiry.');
+    return null;
   },
 
-  // Check if tokens need refresh (refresh if expiring in next 5 minutes)
+  /**
+   * @deprecated Auto-refresh is handled by the auth service using cookies.
+   */
   shouldRefreshToken(): boolean {
-    const accessToken = this.getAccessToken();
-    if (!accessToken) return false;
-    
-    const expiry = this.getTokenExpiry(accessToken);
-    if (!expiry) return false;
-    
-    const fiveMinutesFromNow = Date.now() + (5 * 60 * 1000);
-    return expiry < fiveMinutesFromNow;
+    console.warn('tokenStorage.shouldRefreshToken is deprecated. Use auth service instead.');
+    return false;
   }
 };

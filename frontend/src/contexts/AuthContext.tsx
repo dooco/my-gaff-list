@@ -1,5 +1,13 @@
 'use client';
 
+/**
+ * Authentication Context
+ * 
+ * CRITICAL-6: Updated to use httpOnly cookie-based authentication.
+ * Tokens are stored in cookies by the server, not accessible via JavaScript.
+ * Auth state is verified via server endpoint on initialization.
+ */
+
 import React, { createContext, useContext, useReducer, useEffect, ReactNode } from 'react';
 import { 
   AuthState, 
@@ -110,64 +118,62 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  // Initialize auth state from storage
+  // Initialize auth state by checking with server
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        const storedTokens = tokenStorage.getTokens();
-        const storedUser = tokenStorage.getUser();
-
-        if (storedTokens && storedUser && authService.isAuthenticated()) {
-          // Check if token needs refresh
-          if (tokenStorage.shouldRefreshToken()) {
-            try {
-              const newTokens = await authService.refreshToken();
-              dispatch({
-                type: 'AUTH_SUCCESS',
-                payload: { user: storedUser, tokens: newTokens }
-              });
-            } catch (error) {
-              // If refresh fails, clear stored data
-              tokenStorage.clearAll();
-              dispatch({ type: 'LOGOUT' });
+        // CRITICAL-6: Check auth status via server endpoint (cookie-based)
+        const authStatus = await authService.checkAuthStatus();
+        
+        if (authStatus.authenticated && authStatus.user) {
+          dispatch({
+            type: 'AUTH_SUCCESS',
+            payload: { 
+              user: authStatus.user, 
+              // Tokens are in httpOnly cookies, use placeholder
+              tokens: { access: 'cookie', refresh: 'cookie' } 
             }
-          } else {
-            dispatch({
-              type: 'AUTH_SUCCESS',
-              payload: { user: storedUser, tokens: storedTokens }
-            });
-          }
+          });
         } else {
-          // No valid auth data found
+          // Not authenticated
           tokenStorage.clearAll();
           dispatch({ type: 'LOGOUT' });
         }
       } catch (error) {
         console.error('Auth initialization error:', error);
-        tokenStorage.clearAll();
-        dispatch({ type: 'LOGOUT' });
+        // On error, try to use cached user data for quick UI
+        const cachedUser = tokenStorage.getUser();
+        if (cachedUser && tokenStorage.getAuthStatus()) {
+          // Optimistically show cached user, will verify on next request
+          dispatch({
+            type: 'AUTH_SUCCESS',
+            payload: { 
+              user: cachedUser, 
+              tokens: { access: 'cookie', refresh: 'cookie' } 
+            }
+          });
+        } else {
+          tokenStorage.clearAll();
+          dispatch({ type: 'LOGOUT' });
+        }
       }
     };
 
     initializeAuth();
   }, []);
 
-  // Auto refresh token before expiration
+  // Periodic token refresh (every 15 minutes)
   useEffect(() => {
     if (!state.isAuthenticated) return;
 
     const interval = setInterval(async () => {
       try {
         await authService.autoRefreshToken();
-        const newTokens = tokenStorage.getTokens();
-        if (newTokens) {
-          dispatch({ type: 'UPDATE_TOKENS', payload: newTokens });
-        }
       } catch (error) {
         console.error('Auto token refresh failed:', error);
         logout();
       }
-    }, 4 * 60 * 1000); // Check every 4 minutes
+    }, 15 * 60 * 1000); // Every 15 minutes
 
     return () => clearInterval(interval);
   }, [state.isAuthenticated]);
@@ -250,6 +256,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const refreshUser = async (): Promise<void> => {
     try {
       const user = await authService.getCurrentUser();
+      tokenStorage.setUser(user);
       dispatch({ type: 'SET_USER', payload: user });
     } catch (error) {
       console.error('Failed to refresh user data:', error);
