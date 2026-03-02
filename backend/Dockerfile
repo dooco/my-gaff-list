@@ -1,82 +1,47 @@
-# Build stage
+# Multi-stage build for smaller image
 FROM python:3.12-slim as builder
 
-# Set work directory
 WORKDIR /app
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    python3-dev \
-    musl-dev \
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
 COPY requirements.txt .
-RUN pip install --user --no-warn-script-location -r requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /app/wheels -r requirements.txt
 
-# Production stage
+# Production image
 FROM python:3.12-slim
 
-# Set work directory
+# Create non-root user
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser
+
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH=/root/.local/bin:$PATH
-
 # Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    netcat-traditional \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /root/.local
+# Copy wheels and install
+COPY --from=builder /app/wheels /wheels
+RUN pip install --no-cache /wheels/*
 
-# Copy project files
-COPY . .
+# Copy application
+COPY --chown=appuser:appgroup . .
 
-# Create necessary directories
-RUN mkdir -p /app/static /app/media
+# Switch to non-root user
+USER appuser
 
-# Create entrypoint script
-RUN echo '#!/bin/sh\n\
-set -e\n\
-\n\
-echo "Waiting for database..."\n\
-while ! nc -z ${DB_HOST:-db} ${DB_PORT:-5432}; do\n\
-    sleep 0.1\n\
-done\n\
-echo "Database is ready!"\n\
-\n\
-echo "Running migrations..."\n\
-python manage.py migrate --noinput\n\
-\n\
-echo "Collecting static files..."\n\
-python manage.py collectstatic --noinput\n\
-\n\
-echo "Creating superuser if not exists..."\n\
-python manage.py create_superuser_if_not_exists || true\n\
-\n\
-echo "Loading initial data..."\n\
-python manage.py load_irish_locations || true\n\
-\n\
-exec "$@"' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
+# Collect static files
+# NOTE: Ensure required env vars (e.g. SECRET_KEY) are provided at runtime/build time.
+RUN python manage.py collectstatic --noinput --clear
 
-# Expose port
 EXPOSE 8000
 
-# Set entrypoint
-ENTRYPOINT ["/app/entrypoint.sh"]
-
-# Run gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "3", "--threads", "2", "--timeout", "120", "my_gaff_list.wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "4", "my_gaff_list.wsgi:application"]
