@@ -15,6 +15,10 @@ import sys
 from pathlib import Path
 from decouple import config
 
+# Sentry SDK for error monitoring (production only)
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -31,6 +35,16 @@ SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=bool)
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",")
+
+# ERR-1: Sentry Integration for production error monitoring
+if not DEBUG:
+    sentry_sdk.init(
+        dsn=config("SENTRY_DSN", default=""),
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+        environment=config("ENVIRONMENT", default="production"),
+    )
 
 # Check if we should use PostgreSQL (for production or when explicitly set)
 USE_POSTGRES = config("USE_POSTGRES", default=False, cast=bool)
@@ -202,6 +216,8 @@ REST_FRAMEWORK = {
         "user": "1000/hour",
         "login": "5/minute",
     },
+    # ERR-2: Custom structured error handler
+    "EXCEPTION_HANDLER": "apps.core.exceptions.custom_exception_handler",
 }
 
 # Simple JWT Settings

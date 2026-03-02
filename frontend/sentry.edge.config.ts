@@ -1,0 +1,23 @@
+/**
+ * ERR-1: Sentry Edge Configuration
+ * 
+ * This file configures Sentry for Edge Runtime (middleware, edge functions).
+ */
+
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  
+  // Performance monitoring sample rate
+  tracesSampleRate: 0.1,
+  
+  // Environment configuration
+  environment: process.env.NODE_ENV,
+  
+  // Only enable in production
+  enabled: process.env.NODE_ENV === 'production',
+  
+  // Disable debug mode
+  debug: false,
+});

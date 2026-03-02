@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -8,18 +9,25 @@ interface ErrorProps {
 }
 
 /**
- * CRITICAL-4: Global Error Boundary
+ * ERR-3: Global Error Boundary
  * Catches unhandled errors in the app and provides recovery UI.
+ * Integrated with Sentry for production error monitoring.
  */
 export default function Error({ error, reset }: ErrorProps) {
   useEffect(() => {
-    // Log error to monitoring service (e.g., Sentry)
+    // Log error to console in development
     console.error('Application error:', error);
     
-    // TODO: Send to error monitoring service
-    // if (typeof window !== 'undefined' && window.Sentry) {
-    //   window.Sentry.captureException(error);
-    // }
+    // ERR-1: Send error to Sentry in production
+    Sentry.captureException(error, {
+      tags: {
+        errorBoundary: 'global',
+        digest: error.digest || 'unknown',
+      },
+      extra: {
+        componentStack: error.stack,
+      },
+    });
   }, [error]);
 
   return (
