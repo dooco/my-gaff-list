@@ -89,20 +89,28 @@ class PropertyManagementViewSet(viewsets.ModelViewSet):
         return PropertyListSerializer
     
     def get_queryset(self):
-        """Return only properties belonging to the current landlord"""
+        """Return only properties belonging to the current landlord with optimized queries"""
         print(f"PropertyManagementViewSet.get_queryset() called for user: {self.request.user.email}")
         
         # Check if we should include deleted properties
         include_deleted = self.request.query_params.get('include_deleted', 'false').lower() == 'true'
         
         try:
-            landlord_profile = LandlordProfile.objects.get(user=self.request.user)
-            queryset = Property.objects.filter(landlord=landlord_profile.landlord)
+            landlord_profile = LandlordProfile.objects.select_related('landlord').get(user=self.request.user)
+            queryset = Property.objects.select_related(
+                'county', 'town', 'landlord', 'owner'
+            ).prefetch_related(
+                'images'
+            ).filter(landlord=landlord_profile.landlord)
             print(f"Found {queryset.count()} properties for landlord profile")
         except LandlordProfile.DoesNotExist:
             # If no LandlordProfile, try to get properties by owner
             print(f"No LandlordProfile found, filtering by owner")
-            queryset = Property.objects.filter(owner=self.request.user)
+            queryset = Property.objects.select_related(
+                'county', 'town', 'landlord', 'owner'
+            ).prefetch_related(
+                'images'
+            ).filter(owner=self.request.user)
             print(f"Found {queryset.count()} properties by owner")
         
         # Filter out deleted properties unless specifically requested
@@ -370,9 +378,11 @@ class EnquiryManagementViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, IsLandlord]
     
     def get_queryset(self):
-        """Return enquiries for landlord's properties"""
-        landlord_profile = LandlordProfile.objects.get(user=self.request.user)
-        return PropertyEnquiry.objects.filter(
+        """Return enquiries for landlord's properties with optimized queries"""
+        landlord_profile = LandlordProfile.objects.select_related('landlord').get(user=self.request.user)
+        return PropertyEnquiry.objects.select_related(
+            'property', 'property__county', 'property__town', 'user'
+        ).filter(
             property__landlord=landlord_profile.landlord
         ).order_by('-created_at')
     

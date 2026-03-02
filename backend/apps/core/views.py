@@ -17,6 +17,7 @@ from .serializers import (
 )
 from .services.geocoding import geocode_property
 from .services.search import PropertySearchEngine
+from .cache import get_cached_filter_options, invalidate_property_cache
 
 
 class PropertyFilter(django_filters.FilterSet):
@@ -67,7 +68,7 @@ class PropertyFilter(django_filters.FilterSet):
 
 class CountyViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for Counties"""
-    queryset = County.objects.all()
+    queryset = County.objects.prefetch_related('towns').all()
     serializer_class = CountySerializer
     permission_classes = [AllowAny]
     lookup_field = 'slug'
@@ -193,12 +194,19 @@ class TownViewSet(viewsets.ReadOnlyModelViewSet):
 
 class PropertyViewSet(viewsets.ModelViewSet):
     """ViewSet for Properties"""
-    queryset = Property.objects.select_related('county', 'town', 'landlord').filter(is_active=True)
     permission_classes = [AllowAny]
     filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
     filterset_class = PropertyFilter
     ordering_fields = ['rent_monthly', 'created_at', 'bedrooms']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Optimized queryset with select_related and prefetch_related"""
+        return Property.objects.select_related(
+            'county', 'town', 'landlord', 'owner'
+        ).prefetch_related(
+            'images'
+        ).filter(is_active=True)
     
     def get_serializer_class(self):
         """Return appropriate serializer based on action"""
@@ -307,26 +315,8 @@ class PropertyViewSet(viewsets.ModelViewSet):
     
     @action(detail=False, methods=['get'])
     def filters(self, request):
-        """Get available filter options"""
-        return Response({
-            'property_types': [{'value': k, 'label': v} for k, v in Property.PROPERTY_TYPES],
-            'house_types': [{'value': k, 'label': v} for k, v in Property.HOUSE_TYPES],
-            'ber_ratings': [{'value': k, 'label': v} for k, v in Property.BER_RATINGS],
-            'furnished_options': [{'value': k, 'label': v} for k, v in Property.FURNISHED_CHOICES],
-            'lease_duration_types': [{'value': k, 'label': v} for k, v in Property.LEASE_DURATION_TYPES],
-            'parking_types': [{'value': k, 'label': v} for k, v in Property.PARKING_TYPES],
-            'outdoor_space_types': [{'value': k, 'label': v} for k, v in Property.OUTDOOR_SPACE_TYPES],
-            'viewing_types': [{'value': k, 'label': v} for k, v in Property.VIEWING_TYPES],
-            'bedroom_options': [{'value': i, 'label': f"{i} bed{'s' if i != 1 else ''}"} for i in range(1, 6)],
-            'price_ranges': [
-                {'value': '0-1000', 'label': 'Up to €1,000'},
-                {'value': '1000-1500', 'label': '€1,000 - €1,500'},
-                {'value': '1500-2000', 'label': '€1,500 - €2,000'},
-                {'value': '2000-2500', 'label': '€2,000 - €2,500'},
-                {'value': '2500-3000', 'label': '€2,500 - €3,000'},
-                {'value': '3000-99999', 'label': '€3,000+'},
-            ]
-        })
+        """Get available filter options (cached for performance)"""
+        return Response(get_cached_filter_options())
     
     @action(detail=False, methods=['get'])
     def search_suggestions(self, request):

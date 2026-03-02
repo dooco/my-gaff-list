@@ -3,6 +3,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.contrib.auth import get_user_model
 from django.contrib.postgres.search import SearchVectorField
+from django.contrib.postgres.indexes import GinIndex
 from django.conf import settings
 import uuid
 import os
@@ -321,10 +322,30 @@ class Property(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [
-            models.Index(fields=['-created_at']),
-            models.Index(fields=['county', 'town']),
-            models.Index(fields=['rent_monthly']),
-            models.Index(fields=['bedrooms']),
+            # Primary listing indexes
+            models.Index(fields=['is_active', '-created_at'], name='idx_property_active_created'),
+            models.Index(fields=['county', 'is_active'], name='idx_property_county_active'),
+            models.Index(fields=['rent_monthly', 'is_active'], name='idx_property_price_active'),
+            models.Index(fields=['property_type', 'is_active'], name='idx_property_type_active'),
+            models.Index(fields=['bedrooms', 'is_active'], name='idx_property_beds_active'),
+            
+            # Location-based indexes
+            models.Index(fields=['county', 'town'], name='idx_property_location'),
+            models.Index(fields=['latitude', 'longitude'], name='idx_property_coords'),
+            
+            # Filtering indexes
+            models.Index(fields=['ber_rating', 'is_active'], name='idx_property_ber_active'),
+            models.Index(fields=['furnished', 'is_active'], name='idx_property_furnished_active'),
+            models.Index(fields=['available_from', 'is_active'], name='idx_property_avail_active'),
+            models.Index(fields=['pet_friendly', 'is_active'], name='idx_property_pets_active'),
+            
+            # Legacy indexes (kept for compatibility)
+            models.Index(fields=['-created_at'], name='idx_property_created'),
+            models.Index(fields=['rent_monthly'], name='idx_property_price'),
+            models.Index(fields=['bedrooms'], name='idx_property_beds'),
+            
+            # GIN index for full-text search (PostgreSQL only)
+            GinIndex(fields=['search_vector'], name='idx_property_search_gin'),
         ]
     
     def __str__(self):

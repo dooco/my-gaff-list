@@ -299,13 +299,29 @@ ALLOWED_WS_ORIGINS = config(
     default="http://localhost:3000,http://127.0.0.1:3000,ws://localhost:3000,ws://127.0.0.1:3000",
 ).split(",")
 
-# Cache configuration for rate limiting
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-snowflake",
+# Cache configuration - Redis for production, LocMem for development
+if DEBUG:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-snowflake",
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": config('REDIS_URL', default='redis://localhost:6379/1'),
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            }
+        }
+    }
+
+# Cache timeouts
+CACHE_TTL_SHORT = 60 * 5        # 5 minutes
+CACHE_TTL_MEDIUM = 60 * 30      # 30 minutes  
+CACHE_TTL_LONG = 60 * 60 * 24   # 24 hours
 
 # For development - allow all origins (remove in production)
 if DEBUG:
@@ -458,6 +474,14 @@ LOGGING = {
         },
     },
 }
+
+# Development query debugging - log database queries
+if DEBUG:
+    LOGGING['loggers']['django.db.backends'] = {
+        'level': 'DEBUG',
+        'handlers': ['console'],
+        'propagate': False,
+    }
 
 # Create logs directory for development
 if DEBUG:

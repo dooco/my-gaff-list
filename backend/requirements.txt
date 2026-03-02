@@ -23,6 +23,7 @@ django-storages==1.14.2
 boto3==1.28.62
 whitenoise==6.5.0
 redis==5.0.1
+django-redis==5.4.0
 sentry-sdk[django]>=1.40.0
 
 # Testing dependencies

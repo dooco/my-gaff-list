@@ -133,7 +133,13 @@ class SavedPropertiesViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
-        return SavedProperty.objects.filter(user=self.request.user).select_related('property__county', 'property__town')
+        return SavedProperty.objects.filter(
+            user=self.request.user
+        ).select_related(
+            'property__county', 'property__town', 'property__landlord'
+        ).prefetch_related(
+            'property__images'
+        )
     
     def perform_create(self, serializer):
         # Check if property is already saved
